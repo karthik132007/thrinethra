@@ -1,0 +1,9 @@
+cameras:
+  - {id: cam-01, name: East concourse, lat: 17.0001, lon: 81.8040, zone_id: zone-east, kind: crowd}
+  - {id: cam-02, name: Transit plaza, lat: 17.0009, lon: 81.8054, zone_id: zone-transit, kind: crowd}
+  - {id: cam-03, name: Riverside junction, lat: 16.9990, lon: 81.8058, zone_id: zone-road, kind: road}
+  - {id: cam-04, name: South entrance, lat: 16.9986, lon: 81.8035, zone_id: zone-south, kind: crowd}
+connections:
+  - [cam-01, cam-02]
+  - [cam-02, cam-03]
+  - [cam-01, cam-04]

@@ -1,0 +1,27 @@
+[project]
+name = "trinethra"
+version = "0.1.0"
+description = "Evidence-grounded public safety situational intelligence"
+requires-python = ">=3.12,<3.15"
+dependencies = [
+ "fastapi>=0.115,<1", "uvicorn[standard]>=0.34,<1", "sqlalchemy>=2.0,<3",
+ "pydantic-settings>=2.7,<3", "python-multipart>=0.0.20,<1", "numpy>=2,<3",
+ "opencv-python-headless>=4.10,<5", "httpx>=0.28,<1", "psutil>=6,<8",
+ "pyyaml>=6,<7", "langgraph>=1,<2", "alembic>=1.14,<2"
+]
+[project.optional-dependencies]
+vision = ["ultralytics>=8.3,<9", "lap>=0.5,<1"]
+postgres = ["psycopg[binary]>=3.2,<4"]
+test = ["pytest>=8,<10", "pytest-asyncio>=0.25,<2"]
+[tool.pytest.ini_options]
+pythonpath = [".", "apps/backend"]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+[tool.setuptools.packages.find]
+where = [".", "apps/backend"]
+include = ["trinethra*", "packages*", "demo*"]
