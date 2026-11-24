@@ -1,0 +1,36 @@
+services:
+  database:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: trinethra
+      POSTGRES_USER: trinethra
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U trinethra]
+      interval: 5s
+      retries: 10
+  backend:
+    build:
+      context: .
+      dockerfile: infrastructure/Dockerfile.backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://trinethra:${POSTGRES_PASSWORD}@database:5432/trinethra
+      DEMO_MODE: ${DEMO_MODE:-true}
+      OPERATOR_TOKEN: ${OPERATOR_TOKEN:-}
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      LLM_PROVIDER: ${LLM_PROVIDER:-none}
+      MODEL_PATH: runtime/models/yolo11n.pt
+    ports: [127.0.0.1:8000:8000]
+    volumes: [./runtime:/app/runtime]
+    depends_on:
+      database:
+        condition: service_healthy
+  frontend:
+    build:
+      context: .
+      dockerfile: infrastructure/Dockerfile.frontend
+    ports: [127.0.0.1:3000:3000]
+    depends_on: [backend]
+volumes:
+  postgres-data:

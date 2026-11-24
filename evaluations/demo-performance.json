@@ -1,0 +1,14 @@
+{
+  "provenance": "synthetic scenario (four camera feeds), not video inference",
+  "threshold_to_event_seconds": 6.139,
+  "event_creation_to_websocket_delivery_ms": 279.68,
+  "evidence_capture_to_event_ms": 22.77,
+  "mean_engine_tick_ms": 86.19,
+  "max_engine_tick_ms": 116.95,
+  "samples": 15,
+  "backend_rss_mb": 487.7,
+  "process_cpu_percent_since_last_health_call": 10.4,
+  "system_cpu_percent": 38.9,
+  "gpu": "Not used or measured",
+  "note": "Condition-to-event delay includes real temporal persistence. Delivery measures WebSocket receipt, not browser paint."
+}

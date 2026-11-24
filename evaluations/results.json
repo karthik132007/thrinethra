@@ -1,0 +1,64 @@
+{
+  "seed": 42,
+  "provenance": "synthetic benchmark; detector bypassed",
+  "event_evaluation_unit": "Per-second samples across 20 constructed episodes; positive label begins after 6 seconds of sustained high occupancy",
+  "event_samples": 3000,
+  "single_frame_threshold": {
+    "precision": 0.8125,
+    "recall": 1.0,
+    "true_positives": 780,
+    "false_positives": 180,
+    "false_negatives": 0,
+    "false_alert_samples": 180
+  },
+  "temporal_crowd_baseline": {
+    "precision": 0.9487,
+    "recall": 0.9487,
+    "true_positives": 740,
+    "false_positives": 40,
+    "false_negatives": 40,
+    "false_alert_samples": 40
+  },
+  "mean_detection_delay_from_sustained_onset_seconds": 8.0,
+  "forecast_horizon_seconds": 10,
+  "forecasting": {
+    "last_value": {
+      "mae": 2.254,
+      "rmse": 2.792,
+      "samples": 520
+    },
+    "moving_average": {
+      "mae": 2.361,
+      "rmse": 2.91,
+      "samples": 520
+    },
+    "exponential_smoothing": {
+      "mae": 2.386,
+      "rmse": 2.942,
+      "samples": 520
+    },
+    "rolling_regression": {
+      "mae": 1.773,
+      "rmse": 2.13,
+      "samples": 520
+    }
+  },
+  "correlation_labeled_pairs": 6,
+  "correlation": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "true_positives": 2,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "false_alert_samples": 0
+  },
+  "not_evaluated": [
+    "Detection mAP",
+    "Real crowd counting MAE",
+    "Natural-video event precision/recall",
+    "Real-world forecast lead time",
+    "Calibrated uncertainty coverage",
+    "General-purpose LLM accuracy"
+  ],
+  "runtime_seconds": 0.429
+}

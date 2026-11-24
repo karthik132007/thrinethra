@@ -1,0 +1,16 @@
+{
+  "provenance": "video_inference",
+  "fixture": "Uploaded video encoded from a repeated real photograph",
+  "upload_validated": true,
+  "tracks": 5,
+  "track_classes": [
+    "bus",
+    "person"
+  ],
+  "annotated_frame_bytes": 89135,
+  "first_observation_wall_seconds": 8.111,
+  "observation_inference_ms": 77.33,
+  "queue_to_result_ms": 498.32,
+  "backend_rss_mb": 489.2,
+  "limitations": "No natural-motion accuracy or safety validation. Warm-up included in first observation wall time."
+}

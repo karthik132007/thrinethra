@@ -1,0 +1,26 @@
+{
+  "fixture": "Locally encoded repeated real bus photograph; no natural scene dynamics",
+  "source": "runtime/media/inference-smoke.avi",
+  "frames": 12,
+  "classes_detected": [
+    "bus",
+    "person"
+  ],
+  "stable_track_ids": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "first_frame_ms": 6513.38,
+  "mean_inference_ms_excluding_first": 108.58,
+  "inference_fps_excluding_first": 9.21,
+  "p95_inference_ms_excluding_first": 306.53,
+  "rss_mb": 437.8,
+  "process_cpu_percent": 238.9,
+  "device": "cpu",
+  "size": 640,
+  "accuracy": "Not evaluated; no ground truth annotations",
+  "natural_video_dynamics": "Not evaluated"
+}

@@ -1,0 +1,15 @@
+# Privacy and responsible AI
+
+Trinethra observes aggregate conditions. There is no facial recognition, biometric identification, protected attribute inference, cross-camera re-identification, suspect identification, individual threat scoring or autonomous enforcement. Anonymous tracking IDs are temporary and local to one camera process. Camera relationships correlate aggregate events only.
+
+All suspected conditions require human interpretation. Operator review is audited and does not dispatch services, assign penalties or make accusations. Experimental scores and heuristic confidence must not be treated as scientifically validated danger probabilities. Use this research MVP for demonstration/evaluation, not as a safety-critical system.
+
+Default evidence storage blurs the upper 35% of each detected person's box. This is a privacy baseline, **not a verified face anonymizer**: undetected/occluded people may remain visible. Live frames are visible to the authenticated operator. Incoming video is not recorded, but uploaded source media remains on disk for replay. Evidence/observations have configurable retention sweeps; incident summaries, reports, audit and feedback have no automatic deletion policy yet. Stored track/box/trajectory metadata may remain linkable within a local incident; control access to the runtime directory and database.
+
+Local demo access without a token is restricted by default loopback binding. Set OPERATOR_TOKEN to enable constant-time token validation and an HttpOnly SameSite cookie. Non-demo mode refuses to start without a token. This is a shared-operator MVP; named roles, token rotation, per-user identity and secure Internet deployment are optional future work. Set COOKIE_SECURE=true behind HTTPS before remote deployment. Avoid putting source credentials in camera names or operator notes. API camera responses and audit logs omit source paths/credentials.
+
+Uploaded content is size-limited, extension-checked and decoder-validated. Filesystem sources must resolve inside the media root. RTSP is explicitly opt-in; trusted operators may intentionally access private camera addresses. This is not a hardened media parser/SSRF isolation layer: use a trusted network and sandbox decoder processes for external deployments.
+
+The investigation workflow has no shell, unrestricted filesystem or database mutation tools. Metadata, questions and reference documents are untrusted. Deterministic facts are derived from retained evidence IDs. Optional model text is isolated as unverified advisory content; prompt injection cannot grant execution authority. If an external LLM is configured, selected observation factors and question text are transmitted to that configured provider. Do not include personal or secret data in those fields.
+
+Model licenses and media permissions remain the operator's responsibility. No third-party CCTV footage is distributed. The fictional campus map prevents the demo being mistaken for a real operational camera installation.
