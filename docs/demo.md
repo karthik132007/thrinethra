@@ -1,16 +1,25 @@
-# Hackathon demonstration
+# Real-video demonstration
 
-No paid keys or CCTV access required. Start both services, open http://127.0.0.1:3000 and press Reset demo. The amber SIMULATION bar and source badges explicitly identify synthetic measurements. Four virtual camera coordinates and connectivity edges are seeded from configs/cameras.yaml; the map is a fictional campus near the demo city coordinates.
+Run `make run`, then open http://127.0.0.1:3000. No paid key is needed. The default is SYNTHETIC_MODE=false; a green REAL VIDEO INFERENCE banner identifies the model and recorded source workflow.
 
-1. **Normal monitoring (scenario 0–15 s):** inspect camera health and camera-local IDs. Point out object capacity is an image-space threshold, not people/m².
-2. **Increasing influx (15–42 s):** watch East concourse and Transit plaza counts rise with a configured delay. Historical points feed the actual forecasting module; no chart series are hand-authored.
-3. **Congestion (42–95 s):** temporal persistence opens potential crowd-safety incidents; road actors stop in a restricted region. Highlight candidate waiting, risk factors and separate confidence.
-4. **Cross-camera reasoning:** open a crowd incident and inspect its linked incident graph. Explain connectivity, compatible event types and onset proximity. No people are matched across cameras.
-5. **Prediction:** open Intelligence. Show actual recent synthetic observations, rolling regression, interval and possible capacity crossing; emphasize uncertainty.
-6. **Investigation:** select an incident and press Investigate incident. The read-only LangGraph workflow produces grounded observations with exact evidence references, hypotheses, missing information and human review steps. No LLM key required.
-7. **Human oversight:** enter a note and mark Under Review, Verified, Dismissed or Resolved. Inspect the lifecycle timeline. No real response is dispatched.
-8. **Recovery (95–150 s):** watch occupancy fall; at completion virtual feeds become empty and persistent conditions automatically resolve after normalization. Closed records remain inspectable.
+1. Press Replay recordings. Source files are decoded once; cold initialization finishes before playback begins. Actual models produce boxes/classes/confidences/anonymous local IDs, counts and image-plane trajectories. Observe processed/dropped frame counts and source progress. Stop/Start a source independently.
+2. Open Surveillance and inspect a camera. The annotated source frame is computed from original recording pixels. Expand source playback to see a browser-compatible WebM preview, original publisher URL, source SHA-256 and crop information. Downloaded recordings are not represented as live city cameras.
+3. Review the source graph. The main MOT17 pair is explicitly two adjacent crops of one real recording; it is not falsely presented as two independent cameras. The other two clips have no invented spatial relation or GPS placement.
+4. Open Intelligence: charts use real detector-derived observations. The baseline is selected from regression/last observation/exponential smoothing using recent validation, and its chosen method is displayed. Forecasts and capacity crossings are estimates, not guaranteed safety outcomes.
+5. Inspect a measured sustained crowd-threshold incident. Normal footage may yield no road incident: no accident is fabricated. The configured image-space object capacity and temporal persistence explain why a condition appears.
+6. Run investigation and ask a question. A bounded job queue shows generation progress while local Qwen reasons over retained structured evidence. Inspect factual snapshot citations, model-generated hypotheses, missing information and human review steps. A provider failure is explicit and retains evidence-only reporting.
+7. Verify/dismiss/resolve with a note. Timeline/audit records update; no services are dispatched, no identities inferred and no enforcement occurs.
 
-2× is a readable default; 5× produces a compact ~30-second scenario plus real-time persistence. Pause freezes synthetic observations; real video sources keep processing. Reset clears only synthetic generated records and preserves audit history/video-derived records. Scenario time restarts on backend launch; persisted records survive until reset.
+## Independent physical-camera experiment
 
-For real inference, use Surveillance → Add camera → Upload video, with footage you are authorized to process. Set an appropriate ROI/capacity. The source badge changes to VIDEO INFERENCE. No natural surveillance footage is bundled. The optional smoke fixture encodes a repeated real photograph solely to verify decoding/inference/tracking; do not present it as real crowd movement or accident validation.
+The official EPFL laboratory sequence was downloaded from its publisher under the stated research permission. Two different synchronized camera files are processed through the same detector, temporal engine, event store and correlation graph:
+
+```bash
+.venv/bin/python evaluations/physical_cameras.py
+```
+
+This uses an isolated SQLite database under runtime/, so it does not change operator cameras/history. It uses an explicitly low 3-object threshold to exercise the mechanics with up to four laboratory participants. The outputs are actual measured counts, event evidence and aggregate correlations, not a claim that four people constitute a safety emergency. Exact results are in evaluations/physical-camera-results.json and docs/real-video-evaluation.md.
+
+## Synthetic regression fixture
+
+Generated trajectories are retained only for deterministic testing: launch a separate backend with SYNTHETIC_MODE=true and a separate DATABASE_URL. E2E_SYNTHETIC=1 selects its isolated browser suite. These tests cannot establish real-video accuracy and are not the default demo.

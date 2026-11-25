@@ -15,3 +15,13 @@
 - **OpenCV libGL error:** install libgl1/libglib2.0-0 for full Ultralytics OpenCV, or use the headless-only synthetic install.
 - **Docker daemon not available:** local Python/Node setup remains fully supported; Docker validation limits are documented in PROGRESS.md.
 - **Secrets/network exposure:** restore loopback bindings; configure a token and TLS before any remote use. This repository includes no automatic external deployment.
+
+
+## Real-video workflow
+
+- If all cameras are stopped/ended, press Start for a source or Replay recordings. Replay preserves deliberately disabled sources. Do not infer that zero online sources means zero observed people; the UI retains last-observed frames/counts with their timestamps.
+- Missing Torch/Ultralytics after environment repair: use the complete vision install from installation.md or make setup; base API packages alone do not run the detector.
+- Run make assets to verify actual source/model SHA-256 values and create browser-compatible WebM previews. MPEG-4 Part 2/Indeo source containers may decode in OpenCV while being unsupported by a browser.
+- Investigations take tens of seconds on CPU. The UI polls a bounded job; backend restart invalidates pending job IDs, so rerun it. Completed reports remain in the database. Evidence-only fallback is explicit when the model is missing or returns invalid citations.
+- The normal app uses ports 3000/8000; acceptance tests use 3001/8001 and their own store. This preserves operator-controlled camera state.
+- Sparse sampling can cause tracking switches and dense/night scenes undercount people. Actual misses and baseline comparisons are in real-video-evaluation.md. Increasing model size is not guaranteed to improve the result.

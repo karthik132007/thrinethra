@@ -1,0 +1,99 @@
+{
+  "description": "Real natural-motion recordings and pretrained model assets. No videos or weights redistributed.",
+  "assets": [
+    {
+      "id": "people",
+      "path": "runtime/media/downloads/people-walking.mp4",
+      "url": "https://media.roboflow.com/supervision/video-examples/people-walking.mp4",
+      "kind": "video",
+      "bytes": 7606633,
+      "sha256": "822671fb20ed13ef9ead91d1f3678863b5aa078dd3b2ed45953fda39a61c979d",
+      "license_note": "Publisher-provided demonstration asset; source: https://supervision.roboflow.com/latest/assets/ . Local testing only; no redistribution grant inferred."
+    },
+    {
+      "id": "traffic",
+      "path": "runtime/media/downloads/vehicles.mp4",
+      "url": "https://media.roboflow.com/supervision/video-examples/vehicles.mp4",
+      "kind": "video",
+      "bytes": 35345757,
+      "sha256": "ac81100d9310bd4e9c02bc0b13b6492781d009742ced347766b2601be3c44ad4",
+      "license_note": "Publisher-provided demonstration asset; local testing only, not redistributed."
+    },
+    {
+      "id": "mot04",
+      "path": "runtime/media/downloads/MOT17-04.mp4",
+      "url": "https://motchallenge.net/sequenceVideos/MOT17-04-FRCNN-raw.mp4",
+      "kind": "video",
+      "bytes": 14745062,
+      "sha256": "ab0d2fc03bce5e112abe9a173de7a2d70b39875c0af3eca49d6160c6e317e495",
+      "license_note": "MOTChallenge research dataset; source and terms: https://motchallenge.net/data/MOT17/ . Local research use, not redistributed."
+    },
+    {
+      "id": "mot09",
+      "path": "runtime/media/downloads/MOT17-09.mp4",
+      "url": "https://motchallenge.net/sequenceVideos/MOT17-09-FRCNN-raw.mp4",
+      "kind": "video",
+      "bytes": 15326116,
+      "sha256": "44472faa5643b173fa9b0d4837d3018cd1f5c4a3f13ab4bc9f865cf552022f9d",
+      "license_note": "MOTChallenge research dataset; local research use, not redistributed."
+    },
+    {
+      "id": "mot-labels",
+      "path": "runtime/datasets/MOT17Labels.zip",
+      "url": "https://motchallenge.net/data/MOT17Labels.zip",
+      "kind": "annotations",
+      "bytes": 10107022,
+      "sha256": "0aa79322e91583369f42f17c4d79a0b145380d8732487bba59272048dc82b2b9",
+      "license_note": "MOTChallenge training annotations; local research use, not redistributed."
+    },
+    {
+      "id": "yolo11n",
+      "path": "runtime/models/yolo11n.pt",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt",
+      "kind": "model",
+      "bytes": 5613764,
+      "sha256": "0ebbc80d4a7680d14987a577cd21342b65ecfd94632bd9a8da63ae6417644ee1",
+      "license_note": "Ultralytics AGPL-3.0 / applicable enterprise license"
+    },
+    {
+      "id": "yolo11s",
+      "path": "runtime/models/yolo11s.pt",
+      "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11s.pt",
+      "kind": "model",
+      "bytes": 19313732,
+      "sha256": "85a76fe86dd8afe384648546b56a7a78580c7cb7b404fc595f97969322d502d5",
+      "license_note": "Ultralytics AGPL-3.0 / applicable enterprise license"
+    },
+    {
+      "id": "epfl-c0",
+      "path": "runtime/media/downloads/EPFL-4p-c0.avi",
+      "url": "https://documents.epfl.ch/groups/c/cv/cvlab-pom-video1/www/4p-c0.avi",
+      "kind": "video",
+      "bytes": 103322644,
+      "sha256": "4fe199fad7ae7b63ad798c03dd09942cc1d3dd06150824cf25ace4cd20fefb8a",
+      "recording_group": "EPFL-4p-synchronized",
+      "license_note": "Copyright CVLab EPFL; publisher explicitly permits research use. Cite Fleuret, Berclaz, Lengagne and Fua, TPAMI 2008, DOI 10.1109/TPAMI.2007.1174. Not redistributed.",
+      "context": "Two different synchronized physical cameras of the same EPFL laboratory. No cross-camera identities are matched; geographic location remains unverified."
+    },
+    {
+      "id": "epfl-c1",
+      "path": "runtime/media/downloads/EPFL-4p-c1.avi",
+      "url": "https://documents.epfl.ch/groups/c/cv/cvlab-pom-video1/www/4p-c1.avi",
+      "kind": "video",
+      "bytes": 103353490,
+      "sha256": "ca568315b18a17a5fcbbe8f86c254c745e07aff3801d9d46f121d10633b8eb36",
+      "recording_group": "EPFL-4p-synchronized",
+      "license_note": "Copyright CVLab EPFL; publisher explicitly permits research use. Cite Fleuret, Berclaz, Lengagne and Fua, TPAMI 2008, DOI 10.1109/TPAMI.2007.1174. Not redistributed.",
+      "context": "Two different synchronized physical cameras of the same EPFL laboratory. No cross-camera identities are matched; geographic location remains unverified."
+    },
+    {
+      "id": "epfl-calibration",
+      "path": "runtime/datasets/EPFL-calibration-4p.txt",
+      "url": "https://www.epfl.ch/labs/cvlab/wp-content/uploads/2018/08/calibration-4p.txt",
+      "kind": "annotations",
+      "bytes": 1606,
+      "sha256": "a55724642d90cf71ab8fecc7678c6de55003a2a268b639faade20841242fc8d4",
+      "license_note": "CVLab EPFL research use; source calibration retained for provenance, not used to infer physical speeds or identities."
+    }
+  ]
+}

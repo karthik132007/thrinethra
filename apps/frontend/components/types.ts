@@ -20,6 +20,20 @@ export type Camera = {
   health: string;
   detail: string;
   dropped_frames?: number;
+  processed_frames?: number;
+  media_time?: number;
+  media_duration?: number;
+  last_result_at?: number | null;
+  source_metadata?: {
+    title: string;
+    publisher_url: string | null;
+    sha256: string | null;
+    recorded: boolean;
+    location_verified: boolean;
+    crop: number[] | null;
+    recording_group: string | null;
+    context: string;
+  };
 };
 export type Zone = {
   id: string;
@@ -134,6 +148,7 @@ export type Snapshot = {
     paused: boolean;
     phase: string;
   };
+  recordings?: { enabled: boolean; context: string; model: string };
   health: { engine_error: string; tick_ms: number; uptime_seconds: number };
 };
 export type Evidence = {
@@ -173,6 +188,11 @@ export type Report = {
     question: string;
     risk?: Risk;
     tool_trace: string[];
+    model_reasoning?: {
+      provider: string;
+      model: string;
+      citations_validated: boolean;
+    };
     optional_llm_advisory?: { text: string; label: string };
   };
 };

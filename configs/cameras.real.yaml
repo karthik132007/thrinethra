@@ -1,0 +1,42 @@
+# Positions below are layout coordinates for the recording graph, not verified GPS locations.
+# Two views are non-overlapping crops of the same real MOT17-04 recording.
+cameras:
+  - id: rec-west
+    name: MOT17-04 · west view
+    lat: 0.001
+    lon: 0.001
+    source: media:downloads/MOT17-04.mp4
+    kind: crowd
+    zone_id: roi-west
+    capacity: 18
+    crop: [0.0, 0.0, 0.5, 1.0]
+    recording_group: MOT17-04
+  - id: rec-east
+    name: MOT17-04 · east view
+    lat: 0.001
+    lon: 0.003
+    source: media:downloads/MOT17-04.mp4
+    kind: crowd
+    zone_id: roi-east
+    capacity: 18
+    crop: [0.5, 0.0, 1.0, 1.0]
+    recording_group: MOT17-04
+  - id: rec-people
+    name: Pedestrian crossing · recording
+    lat: -0.001
+    lon: 0.001
+    source: media:downloads/people-walking.mp4
+    kind: crowd
+    zone_id: roi-people
+    capacity: 30
+  - id: rec-traffic
+    name: Road traffic · recording
+    lat: -0.001
+    lon: 0.003
+    source: media:downloads/vehicles.mp4
+    kind: road
+    zone_id: roi-traffic
+    capacity: 25
+connections:
+  - [rec-west, rec-east]
+connection_context: Adjacent non-overlapping views derived from the SAME MOT17-04 recording. This tests aggregate spatial reasoning; these are not independent physical cameras.

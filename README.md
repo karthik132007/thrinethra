@@ -1,83 +1,85 @@
 # TRINETHRA
 
-**The Third Eye for Public Safety** · Experimental, local-first situational intelligence.
+**The Third Eye for Public Safety** — local video situational intelligence with measured evidence and human review.
 
-Trinethra connects camera-local object trajectories to temporal crowd and road signals, correlated incidents, interpretable forecasts, transparent risk components and evidence-grounded investigation. Operators can inspect the exact measurements behind an alert, review connected zones and verify or dismiss a suspected condition. No biometric identification, cross-camera person matching, individual threat scores or autonomous enforcement.
+The default application now runs **real pretrained YOLO + ByteTrack inference on downloaded moving videos**. It does not generate people, detections, counts, trajectories, incidents or chart series. The earlier synthetic scenario remains only as an explicitly enabled test fixture (`SYNTHETIC_MODE=true`).
 
-![Command centre](docs/screenshots/command-centre.jpg)
+![Real recording surveillance](docs/screenshots/real-surveillance.jpg)
 
-## Run locally
-
-Requires Python 3.12+, Node.js 24 LTS and `uv` (or Python venv/pip). No paid key is needed. All commands run from this repository.
+## Start the installed application
 
 ```bash
-uv venv --python 3.12 .venv
-uv pip install --python .venv/bin/python -c requirements.lock -e '.[test,postgres]'
-npm --prefix apps/frontend ci
+make run
+```
+
+Open **http://127.0.0.1:3000**. This launches FastAPI, Next.js and the local Ollama runtime when available. **Replay recordings** reprocesses the source footage with fresh anonymous tracking. Files play once; the interface shows actual processed frames, dropped frames, media position and measured inference time. Camera inspection includes a browser-compatible source video, publisher URL and SHA-256. No paid API key is needed.
+
+The downloaded inputs are real pedestrian and road recordings from the [Supervision publisher asset collection](https://supervision.roboflow.com/latest/assets/) and raw pedestrian sequences plus training annotations from [MOTChallenge](https://motchallenge.net/data/MOT17/). Source URLs, byte sizes and pinned hashes are in [configs/assets.json](configs/assets.json). Data and model files stay in ignored `runtime/`; they are not redistributed in Git.
+
+## Fresh installation
+
+Requires Python 3.12+, Node.js 24 LTS, `uv`, FFmpeg and optionally [Ollama](https://ollama.com/download) for local language reasoning.
+
+```bash
+make setup
 cp .env.example .env
 make migrate
+make browser-install
 ```
 
-Start two terminals:
+`make setup` installs CPU Torch/YOLO and application dependencies, downloads/verifies two detector models, six real videos and MOT17 annotations, prepares browser playback previews and configures the recording sources. Python must be installed persistently, not under a temporary directory; see [installation](docs/installation.md).
+
+For the local language model, start its server in one terminal and download its model in another:
 
 ```bash
-make backend
+make llm
+# Separate terminal:
+make llm-model
 ```
+
+Then `make run` starts the application; it reuses that local model service. Qwen2.5 1.5B Q4_K_M is approximately 986 MB. Without it, inference/analytics still work and reports explicitly show deterministic measured evidence rather than pretending model reasoning succeeded.
+
+Separate service commands remain available: `make backend`, `make frontend`, `make llm`. Production frontend: `make build`, then `npm --prefix apps/frontend start` (standalone server, loopback). API explorer: **http://127.0.0.1:8000/docs**.
+
+## What is implemented
+
+- Actual local/uploaded video, webcam and opt-in RTSP adapters; independent bounded decoding/inference workers; cold-model initialization before playback; frame dropping, health, replay and EOF cleanup.
+- YOLO11 nano/small models and camera-local ByteTrack; measured normalized boxes, directions, velocities, trajectories, persistent dwell and temporary IDs.
+- ROI-based crowd/road observations and temporal rules. Suspected conditions use real measurements and configurable persistence/capacity, not scheduled demo events. Risk scores remain transparent experimental heuristics, not trained danger probabilities.
+- Event lifecycle, dedupe/cooldown, evidence JPEGs, human verification/dismissal/resolution and audit logging.
+- Explicit aggregate source relationships. The default connected recording views are adjacent crops of one MOT recording, clearly identified as such; an isolated EPFL experiment also verifies real separate synchronized cameras; the project does not misrepresent them as independent physical cameras or verified GPS locations.
+- Forecasts fitted to recent measured counts, with rolling validation across regression, last-value and exponential-smoothing baselines. The chosen method, estimates and approximate intervals are displayed honestly.
+- Read-only LangGraph investigation with actual retained evidence. Local Qwen answers operator questions and produces structured hypotheses/review steps with validated reference IDs. Facts remain the measured evidence; generated interpretations require human verification.
+- Six connected Next.js views, source graph, annotated camera grid, playable recordings, searchable incidents, cited reports, actual-data forecasts, camera/ROI/settings edits and export.
+- SQLAlchemy/SQLite persistence, PostgreSQL configuration/migration, authentication, source confinement, upload limits, CORS, write throttling, retention and default evidence blurring.
+
+## Verify actual video behavior
 
 ```bash
-make frontend
+make test
+make typecheck
+make build
+make e2e
+make real-evaluate
 ```
 
-Open **http://127.0.0.1:3000**. API explorer: **http://127.0.0.1:8000/docs**. The default four-camera synthetic scenario works immediately without model weights, external map tiles or an LLM. The default campus map is explicitly fictional; optional OSM tiles need internet. Server restarts preserve database records; scenario time restarts. Reset demo clears synthetic observations/incidents/reports and preserves video-derived records and audit logs.
-
-For real video inference (additional CPU packages and an explicit model download):
+The default browser suite uses real recordings. Synthetic browser fixtures are opt-in using `E2E_SYNTHETIC=1` and a separate backend with `SYNTHETIC_MODE=true`. Unit tests use clearly labeled generated fixtures to isolate temporal edge cases; they do not constitute real-video model evaluation.
 
 ```bash
-uv pip install --python .venv/bin/python torch torchvision --index-url https://download.pytorch.org/whl/cpu
-uv pip install --python .venv/bin/python -e '.[vision]'
-make model
+# With the real application and local language model running:
+.venv/bin/python scripts/verify_real_system.py
 ```
 
-In **Surveillance → Add camera**, upload your own permitted video and choose crowd or road analytics. Or place it in `runtime/media/` and enter `media:filename.mp4`. Configure the zone capacity/polygon in Settings. Webcam sources use `webcam:0`. RTSP is disabled by default; enable `ALLOW_NETWORK_STREAMS=true` only for trusted camera networks. Videos play once; Start restarts a finished file. The app stores uploaded files until manually removed; it does not record incoming streams. Do not delete files still used by a camera.
+`.venv/bin/python evaluations/physical_cameras.py` reproduces independent-camera correlation using the downloaded EPFL files in an isolated store.
 
-## Implemented MVP
+[Real-video evaluation](docs/real-video-evaluation.md) reports actual results, including missed people and tracking errors. The night crowd preview is difficult; measured recall is low. No claim of reliable accident/stampede prediction, physical density/speed or deployment readiness is made. [Older synthetic experiments](docs/evaluation.md) are retained as historical baselines, not evidence of natural-video accuracy.
 
-- Next.js/TypeScript command centre, interactive Leaflet map, camera grid/inspection, searchable incident register, forecast charts, investigation workspace and editable settings/ROIs. HTTP polling fallback to authenticated WebSocket updates; loading/error/empty states and responsive mobile navigation.
-- FastAPI API, validated inputs, bounded upload, operator token/session cookie, per-client write throttling, structured logs, audit trail, SQLAlchemy persistence and Alembic migration. SQLite default; PostgreSQL configuration and Compose included.
-- Independent bounded decoder/inference threads per camera, frame sampling/dropping, reconnecting live inputs, health, CPU/CUDA configuration. YOLO11n + ByteTrack with camera-local expiring trajectory features.
-- Polygon occupancy, smoothed counts, growth, concentration, directional flow, persistent congestion, bottlenecks and sudden movement. Road baselines for stationary/restricted vehicles, obstruction, congestion and multi-signal suspected incidents.
-- Deduplicated event lifecycle, severity escalation, cooldown, automatic resolution and operator feedback. Connected-camera aggregate event correlation with explanations; simulation never correlates to video inference.
-- Rolling regression forecasts with approximate residual intervals and capacity crossing estimates; experimental 0–100 risk with component breakdown and separate signal confidence.
-- Read-only LangGraph investigation with retained evidence references, explicit hypotheses, uncertainty, human review steps and deterministic fallback. Optional Ollama/OpenAI-compatible advisory text is clearly unverified and never becomes factual evidence.
-- Reproducible synthetic benchmark, real detector/video pipeline smoke scripts, unit/API/integration and Playwright tests, CI configuration, deployment and research documentation.
+## Configuration and privacy
 
-## Verify
+Default `SYNTHETIC_MODE=false`; `DEMO_MODE=true` permits local loopback access without a token and does **not** enable simulation. Set `OPERATOR_TOKEN` for authenticated operation; it is required if `DEMO_MODE=false`. `MODEL_PATH`, `INFERENCE_SIZE`, `SAMPLE_FPS` and `TORCH_THREADS` control actual inference. `LLM_PROVIDER=ollama`, `LLM_BASE_URL`, `LLM_MODEL` configure the downloaded local model; `none` deliberately disables it. No secrets enter Git or the database.
 
-```bash
-make test typecheck build evaluate
-cd apps/frontend
-npx playwright install chromium
-npm run test:e2e
-```
+No identification, biometrics, demographic inference, person re-identification, individual threat scoring or autonomous enforcement. Default evidence blur covers the upper person-box region; it is not guaranteed face anonymization. Original footage is operator-accessible. Input retention, calibrated predictions, physical camera deployment and named-user access require further work before any operational use.
 
-The browser tests start services if needed and exercise the **disposable synthetic demo**. Do not point them at an operational deployment. The tested Python environment is constrained by `requirements.lock`; CPU Torch wheels use the PyTorch CPU index. Frontend dependencies are locked in `apps/frontend/package-lock.json`. The lock contains optional vision/test/PostgreSQL packages; the default package install intentionally stays lighter.
+[Architecture](docs/architecture.md) · [API](docs/api.md) · [Database](docs/database.md) · [Installation](docs/installation.md) · [Docker](docs/deployment.md) · [Models](docs/models.md) · [Privacy](docs/privacy.md) · [Troubleshooting](docs/troubleshooting.md) · [Demonstration](docs/demo.md) · [Progress](PROGRESS.md)
 
-Actual measurements and their limits: [evaluation report](docs/evaluation.md). Real YOLO and HTTP video ingestion were tested using a short video encoded from a repeated public upstream test photograph. This proves decoding, inference, tracking and API integration, **not natural-motion detection accuracy**. No annotated crowd or accident dataset was available, and no real-world safety accuracy is claimed.
-
-## Configuration
-
-No required environment variables for the local synthetic demo. Set `OPERATOR_TOKEN` for operator authentication; it is **required** with `DEMO_MODE=false`. All configuration is in [.env.example](.env.example). Secrets never enter the database. `DATABASE_URL` selects SQLite/PostgreSQL; `MODEL_PATH`, `DEVICE`, `SAMPLE_FPS`, `INFERENCE_SIZE` configure inference. `LLM_PROVIDER=none|ollama|openai` and related environment variables configure optional advisory generation. Retention and evidence blurring are configurable. The defaults bind only to loopback; this is a research MVP, not an internet-hardened deployment.
-
-## Documentation
-
-- [Architecture and module interfaces](docs/architecture.md)
-- [API](docs/api.md) · [Database](docs/database.md)
-- [Local installation](docs/installation.md) · [Docker](docs/deployment.md)
-- [AI models and thresholds](docs/models.md) · [Evaluation](docs/evaluation.md)
-- [Privacy and responsible AI](docs/privacy.md) · [Troubleshooting](docs/troubleshooting.md)
-- [Hackathon demonstration](docs/demo.md) · [Presentation outline and innovation](docs/presentation.md)
-- [Progress and known limits](PROGRESS.md)
-
-## License
-
-Project source: AGPL-3.0-or-later. Ultralytics code/weights have upstream AGPL/enterprise licensing; review [Ultralytics licensing](https://www.ultralytics.com/license) before alternative distribution. No third-party surveillance footage or model weights are committed. See [datasets/README.md](datasets/README.md).
+Project source is AGPL-3.0-or-later; respect each model/data publisher's separate terms. No remote push or external deployment is performed automatically.

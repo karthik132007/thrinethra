@@ -232,3 +232,93 @@ def test_retention_removes_expired_evidence_and_references(client):
     from trinethra.config import RUNTIME
 
     assert all(not (RUNTIME / "evidence" / p).exists() for p in paths)
+
+
+def test_real_profile_never_seeds_synthetic_measurements(client):
+    old = settings.synthetic_mode
+    settings.synthetic_mode = False
+    try:
+        engine.seed()
+        data = client.get("/api/v1/snapshot").json()
+        assert data["demo"]["enabled"] is False
+        assert len(data["cameras"]) == 4
+        assert all(c["source"] == "video" for c in data["cameras"])
+        assert data["latest"] == []
+        assert len(data["zones"]) == 4
+        assert all(
+            not c["source_metadata"]["location_verified"] for c in data["cameras"]
+        )
+        assert client.post("/api/v1/demo/control", json={"speed": 5}).status_code == 409
+        assert (
+            client.post(
+                "/api/v1/cameras",
+                json={
+                    "name": "Synthetic disallowed",
+                    "lat": 0,
+                    "lon": 0,
+                    "source": "synthetic",
+                },
+            ).status_code
+            == 422
+        )
+    finally:
+        settings.synthetic_mode = old
+
+
+def test_camera_edit_preserves_redacted_source(client):
+    from trinethra.config import RUNTIME
+
+    file = RUNTIME / "media" / "keep-private.mp4"
+    file.write_bytes(b"not decoded because disabled")
+    body = {
+        "name": "Private source",
+        "lat": 0,
+        "lon": 0,
+        "source": "media:keep-private.mp4",
+        "enabled": False,
+    }
+    response = client.post("/api/v1/cameras", json=body)
+    assert response.status_code == 201
+    camera = response.json()
+    assert camera["source"] == "video"
+    response = client.put(
+        "/api/v1/cameras/" + camera["id"],
+        json=body | {"name": "Updated source", "source": ""},
+    )
+    assert response.status_code == 200
+    with Session() as db:
+        assert db.get(Camera, camera["id"]).source == str(file.resolve())
+
+
+def test_empty_token_not_accepted_outside_local_demo(client):
+    from trinethra.api import valid_token
+
+    old = settings.demo_mode
+    settings.demo_mode = False
+    try:
+        assert not valid_token("")
+    finally:
+        settings.demo_mode = old
+
+
+def test_model_investigation_jobs_return_immediately_and_retain_report(client):
+    import time
+
+    data = populate()
+    id = data["incidents"][0]["id"]
+    engine.last_retention = time.time()
+    with client as running:
+        response = running.post(
+            f"/api/v1/investigations/{id}/jobs", json={"question": "Why?"}
+        )
+        assert response.status_code == 202
+        job = response.json()
+        assert job["state"] in ("queued", "running")
+        for _ in range(30):
+            result = running.get("/api/v1/investigation-jobs/" + job["id"]).json()
+            if result["state"] == "complete":
+                break
+            time.sleep(0.05)
+        assert result["state"] == "complete"
+        assert result["report"]["data"]["observations"]
+        assert "task" not in result

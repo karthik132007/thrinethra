@@ -85,7 +85,11 @@ function Badge({ value }: { value: string }) {
 function Provenance({ value }: { value: string }) {
   return (
     <span className={cn("provenance", value === "synthetic" ? "sim" : "real")}>
-      {value === "synthetic" ? "SYNTHETIC" : "VIDEO INFERENCE"}
+      {value === "synthetic"
+        ? "SYNTHETIC"
+        : value === "video_inference"
+          ? "VIDEO INFERENCE"
+          : "WAITING FOR INFERENCE"}
     </span>
   );
 }
@@ -148,7 +152,9 @@ function Frame({
         <div className="empty">
           <CameraIcon size={28} />
           <span>
-            {camera.enabled ? "Waiting for a decoded frame" : "Stream stopped"}
+            {camera.enabled
+              ? "Waiting for actual detector output"
+              : "Stream stopped"}
           </span>
           <Button onClick={() => setFailed(false)}>Retry frame</Button>
         </div>
@@ -300,7 +306,7 @@ export default function Home() {
     [connection, setConnection] = useState("connecting"),
     [error, setError] = useState(""),
     [toast, setToast] = useState(""),
-    [selected, setSelected] = useState("cam-01"),
+    [selected, setSelected] = useState(""),
     [selectedIncident, setSelectedIncident] = useState(""),
     [detail, setDetail] = useState<Detail | null>(null),
     [busy, setBusy] = useState(false),
@@ -347,7 +353,12 @@ export default function Home() {
       const data = await api<Snapshot>("/snapshot");
       setSnapshot(data);
       setNeedsAuth(false);
-      setError("");
+      setError((previous) =>
+        previous.includes("Failed to fetch") ||
+        previous === "Operator authentication required"
+          ? ""
+          : previous,
+      );
     } catch (e) {
       const message = (e as Error).message;
       setError(message);
@@ -400,6 +411,10 @@ export default function Home() {
     };
   }, [refresh, loginVersion]);
   useEffect(() => {
+    if (snapshot && !snapshot.cameras.some((c) => c.id === selected))
+      setSelected(snapshot.cameras[0]?.id || "");
+  }, [snapshot?.cameras.map((c) => c.id).join(","), selected]);
+  useEffect(() => {
     if (!selectedIncident) return;
     api<Detail>(`/incidents/${selectedIncident}`)
       .then(setDetail)
@@ -428,11 +443,31 @@ export default function Home() {
   };
   const investigate = () =>
     run(async () => {
-      const report = await api<Report>(
-        `/investigations/${selectedIncident}`,
+      const job = await api<{ id: string }>(
+        `/investigations/${selectedIncident}/jobs`,
         "POST",
         { question },
       );
+      let report: Report | undefined;
+      const deadline = Date.now() + 240000;
+      while (Date.now() < deadline) {
+        const state = await api<{
+          state: string;
+          report?: Report;
+          error?: string;
+        }>(`/investigation-jobs/${job.id}`);
+        if (state.state === "complete" && state.report) {
+          report = state.report;
+          break;
+        }
+        if (["failed", "cancelled"].includes(state.state))
+          throw new Error(state.error || "Investigation failed");
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+      if (!report)
+        throw new Error(
+          "Investigation is still running; reopen the incident to check retained reports.",
+        );
       setDetail((old) =>
         old ? { ...old, reports: [report, ...old.reports] } : old,
       );
@@ -618,7 +653,10 @@ export default function Home() {
           </div>
           <div className="top-actions">
             <span className="local-label">
-              <MapPin size={13} /> DEMO CAMPUS · RAJAHMUNDRY
+              <MapPin size={13} />{" "}
+              {snapshot?.demo.enabled
+                ? "SYNTHETIC TEST ENVIRONMENT"
+                : "RECORDED VIDEO INFERENCE"}
             </span>
             <span className="top-separator" />
             <span className="clock">
@@ -700,6 +738,32 @@ export default function Home() {
             </div>
           ) : (
             <>
+              {!snapshot.demo.enabled && (
+                <div className="recording-bar">
+                  <div>
+                    <span className="real-tag">REAL VIDEO INFERENCE</span>
+                    <strong>
+                      {snapshot.recordings?.model || "Local detector"}
+                    </strong>
+                    <p>
+                      Measured from downloaded recordings · geographic locations
+                      unverified · no generated detections
+                    </p>
+                  </div>
+                  <Button
+                    disabled={busy}
+                    onClick={() =>
+                      run(
+                        () => api("/recordings/replay", "POST", {}),
+                        "Recordings restarted with fresh tracking",
+                      )
+                    }
+                  >
+                    <RefreshCw size={14} />
+                    Replay recordings
+                  </Button>
+                </div>
+              )}
               {snapshot.demo.enabled && (
                 <div className="demo-bar">
                   <div className="demo-description">
@@ -800,14 +864,16 @@ export default function Home() {
                   />
                   <Stat
                     label="OBSERVED OCCUPANCY"
-                    value={String(people)}
+                    value={snapshot.latest.length ? String(people) : "—"}
                     suffix="people"
-                    sub={`${vehicles} vehicles across configured zones · includes simulation`}
+                    sub={`${vehicles} vehicle detections · ${snapshot.demo.enabled ? "synthetic measurements" : "measured per-source counts, not unique people across cameras"}`}
                     icon={Activity}
                   />
                   <Stat
-                    label="REGIONAL RISK"
-                    value={String(Math.round(maxRisk))}
+                    label="HIGHEST ZONE SCORE"
+                    value={
+                      snapshot.latest.length ? String(Math.round(maxRisk)) : "—"
+                    }
                     suffix="/ 100"
                     sub="Highest zone score · experimental"
                     icon={Shield}
@@ -826,11 +892,18 @@ export default function Home() {
                         subtitle={`${snapshot.cameras.length} SOURCES · ${snapshot.zones.length} ZONES`}
                       >
                         <Button
-                          onClick={() => setStreet((v) => !v)}
+                          onClick={() => {
+                            if (snapshot.demo.enabled) setStreet((v) => !v);
+                            else setFit((v) => v + 1);
+                          }}
                           className={street ? "active-button" : ""}
                         >
                           <Layers size={14} />
-                          {street ? "Street map" : "Schematic"}
+                          {street
+                            ? "Street map"
+                            : snapshot.demo.enabled
+                              ? "Schematic"
+                              : "Source graph"}
                         </Button>
                         <Button
                           aria-label="Fit map"
@@ -850,7 +923,12 @@ export default function Home() {
                         <div className="map-floating-label">
                           <span className="live-dot" /> OPERATIONAL NETWORK{" "}
                           <span className="muted">
-                            / {street ? "OSM" : "FICTIONAL CAMPUS"}
+                            /{" "}
+                            {snapshot.demo.enabled
+                              ? street
+                                ? "OSM"
+                                : "SIMULATION LAYOUT"
+                              : "SOURCE TOPOLOGY"}
                           </span>
                         </div>
                         <div className="map-legend">
@@ -929,8 +1007,8 @@ export default function Home() {
                             <strong>No incidents in this window</strong>
                             <p>
                               Temporal conditions must persist before an alert
-                              opens. Watch the synthetic scenario or add a video
-                              source.
+                              opens. Replay the recordings or add a video
+                              source; normal footage may produce no incidents.
                             </p>
                           </div>
                         )}
@@ -990,7 +1068,9 @@ export default function Home() {
                           <b>
                             {latest?.inference_fps
                               ? latest.inference_fps.toFixed(1) + " FPS"
-                              : "SIM"}
+                              : latest?.provenance === "synthetic"
+                                ? "SIM"
+                                : "—"}
                           </b>{" "}
                           {latest?.inference_fps ? "inference" : "source"}
                         </span>
@@ -999,7 +1079,7 @@ export default function Home() {
                     <section className="panel forecast-preview">
                       <PanelHead
                         title="Occupancy outlook"
-                        subtitle="ROLLING REGRESSION"
+                        subtitle="OBSERVATION-SELECTED BASELINE"
                       >
                         <Button
                           onClick={() => setPage("Predictive intelligence")}
@@ -1019,7 +1099,9 @@ export default function Home() {
                             {latest?.forecast.horizon ?? 60}s
                           </span>
                         </div>
-                        <Provenance value={latest?.provenance || "synthetic"} />
+                        <Provenance
+                          value={latest?.provenance || "unavailable"}
+                        />
                       </div>
                       <ForecastChart
                         snapshot={snapshot}
@@ -1169,6 +1251,16 @@ export default function Home() {
                               compute
                             </span>
                           </div>
+                          {c.source !== "synthetic" && (
+                            <div className="recording-timeline">
+                              Recording {Math.floor(c.media_time || 0)} /{" "}
+                              {Math.ceil(c.media_duration || 0)}s ·{" "}
+                              {c.processed_frames || 0} frames inferred
+                              {c.health === "ended"
+                                ? " · playback complete"
+                                : ""}
+                            </div>
+                          )}
                           {c.detail && (
                             <p className="camera-error">{c.detail}</p>
                           )}
@@ -1178,20 +1270,22 @@ export default function Home() {
                                 run(
                                   () =>
                                     api(
-                                      `/streams/${c.id}/${c.enabled ? "stop" : "start"}`,
+                                      `/streams/${c.id}/${c.enabled && c.health !== "ended" ? "stop" : "start"}`,
                                       "POST",
                                       {},
                                     ),
-                                  `${c.name} ${c.enabled ? "stopped" : "started"}`,
+                                  `${c.name} ${c.enabled && c.health !== "ended" ? "stopped" : "started"}`,
                                 )
                               }
                             >
-                              {c.enabled ? (
+                              {c.enabled && c.health !== "ended" ? (
                                 <Pause size={13} />
                               ) : (
                                 <Play size={13} />
                               )}{" "}
-                              {c.enabled ? "Stop" : "Start"}
+                              {c.enabled && c.health !== "ended"
+                                ? "Stop"
+                                : "Start"}
                             </Button>
                             <Button
                               onClick={() => {
@@ -1203,7 +1297,8 @@ export default function Home() {
                               Configure
                             </Button>
                             <span className="muted">
-                              Dropped frames: {c.dropped_frames ?? 0}
+                              Processed: {c.processed_frames ?? 0} · dropped:{" "}
+                              {c.dropped_frames ?? 0}
                             </span>
                           </div>
                         </section>
@@ -1439,7 +1534,7 @@ export default function Home() {
                                 <p className="report-summary">
                                   {report.summary}
                                 </p>
-                                {report.question && (
+                                {report.operator_answer && (
                                   <p className="muted">
                                     {report.operator_answer}
                                   </p>
@@ -1658,9 +1753,11 @@ export default function Home() {
                     <section className="panel">
                       <PanelHead
                         title={camera?.name || "Selected zone"}
-                        subtitle="HISTORICAL + PREDICTED"
+                        subtitle="MEASURED HISTORY + ESTIMATE"
                       >
-                        <Provenance value={latest?.provenance || "synthetic"} />
+                        <Provenance
+                          value={latest?.provenance || "unavailable"}
+                        />
                       </PanelHead>
                       <ForecastChart snapshot={snapshot} latest={latest} />
                       <div className="chart-legend">
@@ -1689,16 +1786,21 @@ export default function Home() {
                       />
                       <dl>
                         <dt>Method</dt>
-                        <dd>Rolling linear regression</dd>
+                        <dd>
+                          {latest?.forecast.method ||
+                            "Waiting for measured history"}
+                        </dd>
                         <dt>Forecast horizon</dt>
                         <dd>{latest?.forecast.horizon ?? "—"} seconds</dd>
                         <dt>Capacity crossing estimate</dt>
                         <dd>
                           {latest?.forecast.threshold_crossing_seconds != null
                             ? `In ${latest.forecast.threshold_crossing_seconds}s`
-                            : "No crossing in horizon"}
+                            : latest?.forecast.ready
+                              ? "No crossing in horizon"
+                              : "Insufficient measurements"}
                         </dd>
-                        <dt>In-window residual RMSE</dt>
+                        <dt>Recent prediction residual RMSE</dt>
                         <dd>{latest?.forecast.residual_rmse ?? "—"} objects</dd>
                         <dt>Input provenance</dt>
                         <dd>
@@ -1709,8 +1811,9 @@ export default function Home() {
                       </dl>
                       <p>
                         Capacity and risk thresholds are experimental operator
-                        settings. Residual error is an in-window fit measure,
-                        not held-out model accuracy.
+                        settings. Residual error is estimated from recent
+                        observations and is not a real-world safety accuracy
+                        score.
                       </p>
                       <Button onClick={() => setPage("System settings")}>
                         <SlidersHorizontal size={14} />
@@ -1766,7 +1869,7 @@ export default function Home() {
                                 </td>
                                 <td>
                                   <Provenance
-                                    value={l?.provenance || "synthetic"}
+                                    value={l?.provenance || "unavailable"}
                                   />
                                 </td>
                               </tr>
@@ -2035,6 +2138,47 @@ export default function Home() {
               }
               large
             />
+            {inspect.source !== "synthetic" && (
+              <details className="recording-original">
+                <summary>Play source recording and inspect metadata</summary>
+                <video
+                  controls
+                  preload="metadata"
+                  src={`/api/v1/streams/${inspect.id}/video`}
+                  aria-label="Original recorded footage"
+                />
+                <p>
+                  Browser-compatible preview of the original recording.
+                  Detections above are computed independently from the original
+                  frames.
+                </p>
+                <p>
+                  {inspect.source_metadata?.context ||
+                    "Operator-supplied source. Validate context before interpreting alerts."}
+                </p>
+                {inspect.source_metadata?.crop && (
+                  <p>
+                    Analysis crop:{" "}
+                    {JSON.stringify(inspect.source_metadata.crop)} of this
+                    original frame.
+                  </p>
+                )}
+                {inspect.source_metadata?.publisher_url && (
+                  <a
+                    href={inspect.source_metadata.publisher_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Publisher source
+                  </a>
+                )}
+                <p className="mono">
+                  Asset SHA-256:{" "}
+                  {inspect.source_metadata?.sha256 ||
+                    "Not a downloaded manifest asset"}
+                </p>
+              </details>
+            )}
             <div className="inspection-info">
               {snapshot.latest
                 .filter((v) => v.camera_id === inspect.id)
@@ -2056,7 +2200,9 @@ export default function Home() {
                     <p>
                       Inference{" "}
                       {l.inference_fps?.toFixed(1) ??
-                        "not applicable (simulation)"}{" "}
+                        (l.provenance === "synthetic"
+                          ? "not applicable (simulation)"
+                          : "not available")}{" "}
                       FPS · temporary tracks {l.metrics.tracks.length}
                     </p>
                     <Provenance value={l.provenance} />
@@ -2246,13 +2392,17 @@ function CameraForm({
         <input
           value={form.source}
           onChange={(e) => setForm({ ...form, source: e.target.value })}
-          placeholder="synthetic, media:filename.mp4, webcam:0 or rtsp://…"
-          required
+          placeholder={
+            initial
+              ? "Leave blank to keep current source"
+              : "media:filename.mp4, webcam:0 or rtsp://…"
+          }
+          required={!initial}
         />
       </label>
       <p className="muted">
-        For existing video sources, re-enter the source or upload a replacement.
-        Credentials are never returned by the API.
+        Leave the source blank to preserve an existing recording, or upload a
+        replacement. Credentials are never returned by the API.
       </p>
       <label className="upload-field">
         <Upload size={17} />

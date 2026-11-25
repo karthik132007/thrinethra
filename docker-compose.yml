@@ -10,6 +10,11 @@ services:
       test: [CMD-SHELL, pg_isready -U trinethra]
       interval: 5s
       retries: 10
+  ollama:
+    image: ollama/ollama:0.30.10
+    environment:
+      OLLAMA_NO_CLOUD: "1"
+    volumes: [./runtime/models/ollama:/root/.ollama/models]
   backend:
     build:
       context: .
@@ -19,7 +24,12 @@ services:
       DEMO_MODE: ${DEMO_MODE:-true}
       OPERATOR_TOKEN: ${OPERATOR_TOKEN:-}
       CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
-      LLM_PROVIDER: ${LLM_PROVIDER:-none}
+      SYNTHETIC_MODE: "false"
+      INFERENCE_SIZE: 960
+      TORCH_THREADS: 2
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_BASE_URL: http://ollama:11434
+      LLM_MODEL: qwen2.5:1.5b
       MODEL_PATH: runtime/models/yolo11n.pt
     ports: [127.0.0.1:8000:8000]
     volumes: [./runtime:/app/runtime]

@@ -8,17 +8,20 @@ class Trajectories:
     def __init__(self, ttl=8):
         self.history = {}
         self.ttl = ttl
+        self.first_seen = {}
 
     def update(self, detections, timestamp):
         for key in list(self.history):
             if timestamp - self.history[key][-1][0] > self.ttl:
                 del self.history[key]
+                self.first_seen.pop(key, None)
         output = []
         for detection in detections:
             item = dict(detection)
             x1, y1, x2, y2 = item["bbox"]
             center = ((x1 + x2) / 2, y2)
             history = self.history.setdefault(item["id"], deque(maxlen=60))
+            self.first_seen.setdefault(item["id"], timestamp)
             previous_speed = 0
             if len(history) > 1:
                 a, b = history[-2], history[-1]
@@ -35,7 +38,7 @@ class Trajectories:
                 velocity=[vx, vy],
                 speed=speed,
                 sudden_stop=previous_speed > 0.035 and speed < previous_speed * 0.25,
-                dwell=timestamp - history[0][0],
+                dwell=timestamp - self.first_seen[item["id"]],
                 trajectory=[list(p) for p in history],
                 direction=math.degrees(math.atan2(vy, vx)) if speed else 0,
             )

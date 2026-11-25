@@ -33,9 +33,9 @@
         "testDir": "/home/electron/Documents/GitHub/thrinethra/apps/frontend/tests",
         "testIgnore": [],
         "testMatch": [
-          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+          "**/real-recordings.spec.ts"
         ],
-        "timeout": 60000
+        "timeout": 180000
       }
     ],
     "filteredProjects": [
@@ -52,10 +52,10 @@
         "testDir": "/home/electron/Documents/GitHub/thrinethra/apps/frontend/tests",
         "snapshotDir": "/home/electron/Documents/GitHub/thrinethra/apps/frontend/tests",
         "testIgnore": [],
-        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
-        "timeout": 60000,
+        "testMatch": "**/real-recordings.spec.ts",
+        "timeout": 180000,
         "use": {
-          "baseURL": "http://127.0.0.1:3000",
+          "baseURL": "http://127.0.0.1:3001",
           "viewport": {
             "width": 1440,
             "height": 1000
@@ -94,18 +94,18 @@
   },
   "suites": [
     {
-      "title": "operations.spec.ts",
-      "file": "operations.spec.ts",
+      "title": "real-recordings.spec.ts",
+      "file": "real-recordings.spec.ts",
       "column": 0,
       "line": 0,
       "specs": [
         {
-          "title": "command centre displays backend data, map and exports",
+          "title": "default workspace measures downloaded recordings instead of generating simulation",
           "ok": true,
           "tags": [],
           "tests": [
             {
-              "timeout": 60000,
+              "timeout": 180000,
               "annotations": [],
               "expectedStatus": "passed",
               "projectId": "",
@@ -115,12 +115,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 916,
+                  "duration": 8431,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-24T10:21:24.431Z",
+                  "startTime": "2026-11-25T05:14:22.247Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -128,18 +128,18 @@
               "status": "expected"
             }
           ],
-          "id": "4f8fd72df7d8ab107a64-c050b4a759cadd7337b4",
-          "file": "operations.spec.ts",
+          "id": "c258ec162fbda8323f55-483a0ec78afab4237de0",
+          "file": "real-recordings.spec.ts",
           "line": 3,
           "column": 1
         },
         {
-          "title": "synthetic scenario creates linked incidents, investigations and operator reviews",
+          "title": "operators inspect original footage and actual bounding boxes, forecasts and incident references",
           "ok": true,
           "tags": [],
           "tests": [
             {
-              "timeout": 60000,
+              "timeout": 180000,
               "annotations": [],
               "expectedStatus": "passed",
               "projectId": "",
@@ -149,12 +149,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 16697,
+                  "duration": 37939,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-24T10:21:25.438Z",
+                  "startTime": "2026-11-25T05:14:30.916Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -162,18 +162,18 @@
               "status": "expected"
             }
           ],
-          "id": "4f8fd72df7d8ab107a64-25f472505d7fc767f5aa",
-          "file": "operations.spec.ts",
-          "line": 28,
+          "id": "c258ec162fbda8323f55-9b1069aa69669f95707a",
+          "file": "real-recordings.spec.ts",
+          "line": 54,
           "column": 1
         },
         {
-          "title": "surveillance, forecasts and configurable ROI render live data",
+          "title": "real-video controls and source metadata remain usable on mobile",
           "ok": true,
           "tags": [],
           "tests": [
             {
-              "timeout": 60000,
+              "timeout": 180000,
               "annotations": [],
               "expectedStatus": "passed",
               "projectId": "",
@@ -183,12 +183,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1794,
+                  "duration": 1034,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-24T10:21:42.162Z",
+                  "startTime": "2026-11-25T05:15:08.888Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -196,43 +196,9 @@
               "status": "expected"
             }
           ],
-          "id": "4f8fd72df7d8ab107a64-efb124109a996f4c5133",
-          "file": "operations.spec.ts",
-          "line": 71,
-          "column": 1
-        },
-        {
-          "title": "mobile layout keeps navigation and camera workflows usable",
-          "ok": true,
-          "tags": [],
-          "tests": [
-            {
-              "timeout": 60000,
-              "annotations": [],
-              "expectedStatus": "passed",
-              "projectId": "",
-              "projectName": "",
-              "results": [
-                {
-                  "workerIndex": 0,
-                  "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 1003,
-                  "errors": [],
-                  "stdout": [],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2026-11-24T10:21:43.977Z",
-                  "annotations": [],
-                  "attachments": []
-                }
-              ],
-              "status": "expected"
-            }
-          ],
-          "id": "4f8fd72df7d8ab107a64-4ad464fb1a3e13f58cde",
-          "file": "operations.spec.ts",
-          "line": 109,
+          "id": "c258ec162fbda8323f55-edcfff76a9fbe95d7661",
+          "file": "real-recordings.spec.ts",
+          "line": 137,
           "column": 1
         }
       ]
@@ -240,9 +206,9 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-24T10:21:23.978Z",
-    "duration": 21112.302,
-    "expected": 4,
+    "startTime": "2026-11-25T05:14:08.189Z",
+    "duration": 61963.229,
+    "expected": 3,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0

@@ -47,3 +47,10 @@ Default files are paced using their reported frame rate, sampled at 2 FPS and pl
 Synthetic scenario time controls the trajectory generator while persistence uses actual UTC capture timestamps. Higher playback speed compresses the scenario; it does not weaken minimum real-time persistence thresholds. At scenario completion the virtual feeds become empty, allowing outstanding conditions to resolve. Pausing simulation freezes frames/observations. Real video workers continue independently.
 
 Event candidates are held in memory as start times, then persisted once the temporal threshold passes. Active/escalated/under-review/verified events update with current factors; a normalization period resolves them. Dismissed or resolved events remain closed, with a cooldown before a new incident can form. Operator verification is recorded independently of lifecycle status. On restart, candidates and rolling windows warm up again; persisted incident history remains.
+
+
+## Real-recording revision (25 November 2026)
+
+The default source profile is configs/cameras.real.yaml; simulation is disabled unless SYNTHETIC_MODE=true. No source failure substitutes generated detections. Publishers and source hashes are preserved. The recording layout is explicitly a graph, not invented GPS. Initial model load completes before the decoder starts a short clip; EOF drains the queue and ends inference threads. Cold and warm processing time, sampled source rate and delivery latency are distinct. Dwell keeps a separate first-seen timestamp beyond the bounded position deque.
+
+Stored counts drive three baseline forecasts with recent rolling model selection. A bounded asynchronous investigation queue returns an immediate job ID and polls actual generation status, avoiding reverse-proxy timeouts. Local Qwen interprets only retained structured evidence; canonical factual observations remain reference-grounded.

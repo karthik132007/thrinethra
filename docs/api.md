@@ -35,3 +35,15 @@ Limits are bounded to 500 rows (100 for reports). The dashboard snapshot is a co
 WebSocket `/ws/live`: browser origin must match `CORS_ORIGINS`; send `{"token":"..."}` within five seconds (or an empty token with valid cookie/local demo). Server emits `{"type":"snapshot","data":{...}}` at 1 Hz. Frontend reconnects with backoff and polls HTTP every five seconds as fallback. Configure `NEXT_PUBLIC_WS_URL` for a non-default host/port; this value must be set during frontend build.
 
 No route dispatches emergency services or acts on individuals. Audit records deliberately exclude operator secrets, RTSP credentials and raw question text. Camera/zone names, source metadata, reference documents and operator questions are untrusted data, never executable agent instructions.
+
+
+## Real recording and local-model workflow (25 November 2026)
+
+SYNTHETIC_MODE=false is the default. DEMO_MODE controls unauthenticated local demo access and does not enable synthetic measurements. `/snapshot` filters disabled legacy synthetic sources/history out of the real workspace. Camera source_metadata reports checksum-verified publisher assets, crop/recording group and unverified geographic location; source paths/credentials remain redacted.
+
+- POST `/recordings/replay`: begin fresh recording/track runs without deleting evidence/history. Previous active run events resolve with an explicit replay note; cooldown applies within each run.
+- GET `/streams/{id}/video`: authenticated WebM playback preview of original real frames; supports ranges. `?original=true` retrieves the original container/codec. FFmpeg conversion is cached by source size/mtime and has a timeout; failure is an explicit 503, not simulated playback.
+- POST `/investigations/{incident_id}/jobs`: return 202 with an ID and queue/running state immediately. Maximum four queued/running jobs and 64 retained job states; local model execution is serialized.
+- GET `/investigation-jobs/{job_id}`: queued/running/complete/failed/cancelled, plus the actual report when complete. This avoids frontend proxy timeouts during CPU generation. Job state is process-local; finished reports persist in the database. On restart, rerun an interrupted job.
+
+The original synchronous POST investigation endpoint remains available for direct clients with a sufficiently long timeout. The browser uses the short-request job API. Ollama returns structured JSON, cited reference IDs are validated against retained snapshots, and interpretations are labeled as model-generated hypotheses rather than established facts.

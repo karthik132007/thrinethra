@@ -43,3 +43,30 @@ def test_independent_decoder_worker_and_failed_camera(tmp_path, monkeypatch):
         for worker in (valid, failed):
             for thread in worker.threads:
                 thread.join(timeout=2)
+
+
+def test_model_initialization_does_not_consume_short_clip(tmp_path, monkeypatch):
+    class SlowDetector:
+        def __init__(self, *args):
+            time.sleep(0.7)
+
+        def process(self, frame, timestamp):
+            return [], 1.0
+
+    monkeypatch.setattr("packages.vision.stream.Detector", SlowDetector)
+    file = tmp_path / "short.avi"
+    writer = cv2.VideoWriter(str(file), cv2.VideoWriter_fourcc(*"MJPG"), 10, (160, 100))
+    for _ in range(5):
+        writer.write(np.zeros((100, 160, 3), dtype=np.uint8))
+    writer.release()
+    worker = VideoWorker(str(file), "unused", fps=5, crop=[0, 0, 0.5, 1]).start()
+    try:
+        result = worker.results.get(timeout=4)
+        assert result["media_time"] == 0
+        assert result["frame"].shape == (100, 80, 3)
+        for thread in worker.threads:
+            thread.join(timeout=3)
+        assert worker.health == "ended"
+        assert not any(thread.is_alive() for thread in worker.threads)
+    finally:
+        worker.stop()

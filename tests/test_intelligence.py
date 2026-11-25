@@ -146,3 +146,28 @@ def test_correlation_rejects_distant_connected_cameras():
     }
     b = a | {"camera_id": "b", "lat": 18.0}
     assert not correlate(a, b, {frozenset(("a", "b"))})
+
+
+def test_forecast_validates_competing_models_on_noisy_observations():
+    rng = np.random.default_rng(11)
+    history = [
+        {"timestamp": i, "count": 20 + float(rng.normal(0, 3))} for i in range(50)
+    ]
+    result = forecast(history, 40, 30)
+    assert result["ready"]
+    assert len(result["backtest_mae"]) == 3
+    assert result["method"] == min(
+        result["backtest_mae"], key=result["backtest_mae"].get
+    )
+    assert all(p["lower"] <= p["value"] <= p["upper"] for p in result["points"])
+
+
+def test_cross_camera_flow_requires_a_shared_coordinate_frame():
+    a={'camera_id':'a','started_at':100,'type':'bottleneck','provenance':'video_inference','direction':0,'mean_speed':.1}
+    b=a|{'camera_id':'b','direction':180}
+    connection={frozenset(('a','b'))}
+    unaligned=correlate(a,b,connection)
+    assert 'not compared' in unaligned['explanation']
+    aligned=correlate(a|{'flow_reference':'same-view'},b|{'flow_reference':'same-view'},connection)
+    assert '180°' in aligned['explanation']
+    assert aligned['confidence']<unaligned['confidence']

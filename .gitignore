@@ -17,3 +17,4 @@ runtime/
 playwright-report/
 test-results/
 *.egg-info/
+.next-e2e/

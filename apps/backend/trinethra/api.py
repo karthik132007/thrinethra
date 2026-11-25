@@ -49,6 +49,8 @@ from .db import (
     uid,
 )
 from .engine import engine
+from .assets import camera_metadata
+from .media import ensure_preview
 from packages.intelligence.analytics import DEFAULTS
 from packages.investigation.agent import investigate
 
@@ -89,7 +91,9 @@ process_monitor.cpu_percent()
 
 
 def valid_token(token):
-    return (not settings.operator_token and settings.demo_mode) or hmac.compare_digest(
+    if not settings.operator_token:
+        return settings.demo_mode
+    return isinstance(token, str) and hmac.compare_digest(
         token, settings.operator_token
     )
 
@@ -176,12 +180,13 @@ def camera_public(c):
         if c.source == "synthetic"
         else ("webcam" if c.source.startswith("webcam:") else "video")
     )
+    data["source_metadata"] = camera_metadata(c)
     return data
 
 
 def source_path(source):
     if source == "synthetic":
-        if not settings.demo_mode:
+        if not settings.demo_mode or not settings.synthetic_mode:
             raise HTTPException(422, "Synthetic sources require DEMO_MODE=true")
         return source
     if source.startswith("webcam:") and source.split(":")[1].isdigit():
@@ -210,7 +215,7 @@ class CameraInput(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
-    source: str = Field(default="synthetic", max_length=1000)
+    source: str = Field(default="", max_length=1000)
     kind: Literal["crowd", "road"] = "crowd"
     enabled: bool = True
 
@@ -307,6 +312,8 @@ async def cameras():
 
 @app.post("/api/v1/cameras", dependencies=AUTH, status_code=201)
 async def create_camera(body: CameraInput):
+    if not body.source:
+        raise HTTPException(422, "A video source is required")
     source = source_path(body.source)
     with Session.begin() as db:
         camera = Camera(**(body.model_dump() | {"source": source}))
@@ -327,9 +334,9 @@ async def create_camera(body: CameraInput):
 
 @app.put("/api/v1/cameras/{camera_id}", dependencies=AUTH)
 async def update_camera(camera_id: str, body: CameraInput):
-    source = source_path(body.source)
     with Session.begin() as db:
         camera = require(db, Camera, camera_id)
+        source = source_path(body.source) if body.source else camera.source
         for key, value in (body.model_dump() | {"source": source}).items():
             setattr(camera, key, value)
         camera.health = "idle"
@@ -453,7 +460,7 @@ async def stream_control(camera_id: str, action: Literal["start", "stop"]):
         data = serialize(camera)
     engine.stop_worker(camera_id)
     if action == "start" and data["source"] != "synthetic":
-        engine.start_worker(data)
+        engine.restart_recording(data)
     return {"camera_id": camera_id, "enabled": data["enabled"]}
 
 
@@ -463,6 +470,51 @@ async def frame(camera_id: str):
     if content is None:
         raise HTTPException(404, "No frame available yet")
     return Response(content, media_type="image/jpeg")
+
+
+@app.get("/api/v1/streams/{camera_id}/video", dependencies=AUTH)
+async def original_video(camera_id: str, original: bool = False):
+    with Session() as db:
+        camera = require(db, Camera, camera_id)
+        path = Path(camera.source).resolve()
+        if not path.is_relative_to((RUNTIME / "media").resolve()) or not path.is_file():
+            raise HTTPException(
+                404, "A local recording is not available for this source"
+            )
+    if original:
+        return FileResponse(
+            path,
+            media_type="video/mp4"
+            if path.suffix.lower() == ".mp4"
+            else "application/octet-stream",
+        )
+    try:
+        preview = await asyncio.to_thread(ensure_preview, path)
+    except Exception:
+        raise HTTPException(
+            503,
+            "Browser preview could not be prepared; original recording is available using ?original=true",
+        )
+    return FileResponse(preview, media_type="video/webm")
+
+
+@app.post("/api/v1/recordings/replay", dependencies=AUTH)
+async def replay_recordings():
+    with Session() as db:
+        cameras = [
+            serialize(c)
+            for c in db.scalars(
+                select(Camera).where(
+                    Camera.enabled == True, Camera.source != "synthetic"
+                )
+            )
+        ]
+    for camera in cameras:
+        if Path(camera["source"]).is_file():
+            engine.restart_recording(camera)
+    with Session.begin() as db:
+        audit(db, "recordings_replayed", "recordings", {"count": len(cameras)})
+    return {"restarted": len(cameras)}
 
 
 @app.get("/api/v1/observations", dependencies=AUTH)
@@ -764,7 +816,7 @@ async def audit_logs(limit: int = 100, offset: int = 0):
 
 @app.post("/api/v1/demo/control", dependencies=AUTH)
 async def demo_control(body: DemoControl):
-    if not settings.demo_mode:
+    if not settings.demo_mode or not settings.synthetic_mode:
         raise HTTPException(409, "Demo mode is disabled")
     if body.paused is not None:
         engine.paused = body.paused
@@ -775,7 +827,7 @@ async def demo_control(body: DemoControl):
 
 @app.post("/api/v1/demo/reset", dependencies=AUTH)
 async def demo_reset():
-    if not settings.demo_mode:
+    if not settings.demo_mode or not settings.synthetic_mode:
         raise HTTPException(409, "Demo mode is disabled")
     engine.reset_demo()
     return {"reset": True, "scope": "synthetic data only"}
@@ -800,3 +852,77 @@ async def live(websocket: WebSocket):
             await asyncio.sleep(1)
     except (WebSocketDisconnect, asyncio.TimeoutError, RuntimeError):
         pass
+
+
+# Local model generation can exceed reverse-proxy request timeouts. Keep HTTP
+# requests short and expose bounded, read-only job state while the model runs.
+investigation_jobs = {}
+investigation_slots = asyncio.Semaphore(1)
+
+
+@app.post(
+    "/api/v1/investigations/{incident_id}/jobs", dependencies=AUTH, status_code=202
+)
+async def create_investigation_job(incident_id: str, body: Question):
+    with Session() as db:
+        require(db, Incident, incident_id)
+    for id, job in list(investigation_jobs.items()):
+        if now() - job["created_at"] > 1800 and job["state"] not in (
+            "queued",
+            "running",
+        ):
+            investigation_jobs.pop(id, None)
+    if (
+        sum(
+            job["state"] in ("queued", "running") for job in investigation_jobs.values()
+        )
+        >= 4
+    ):
+        raise HTTPException(
+            429, "Investigation queue is full; wait for the current report"
+        )
+    if len(investigation_jobs) >= 64:
+        old = next(
+            (
+                id
+                for id, job in investigation_jobs.items()
+                if job["state"] not in ("queued", "running")
+            ),
+            None,
+        )
+        if old:
+            investigation_jobs.pop(old)
+    id = uid()
+    job = {
+        "id": id,
+        "incident_id": incident_id,
+        "state": "queued",
+        "created_at": now(),
+        "report": None,
+        "error": None,
+    }
+    investigation_jobs[id] = job
+
+    async def perform():
+        try:
+            async with investigation_slots:
+                job["state"] = "running"
+                job["report"] = await investigation(incident_id, body)
+                job["state"] = "complete"
+        except asyncio.CancelledError:
+            job["state"] = "cancelled"
+            job["error"] = "Backend restarted; run investigation again."
+        except Exception as exc:
+            job["state"] = "failed"
+            job["error"] = "Investigation failed: " + type(exc).__name__
+
+    job["task"] = asyncio.create_task(perform())
+    return {key: value for key, value in job.items() if key != "task"}
+
+
+@app.get("/api/v1/investigation-jobs/{job_id}", dependencies=AUTH)
+async def investigation_job_status(job_id: str):
+    job = investigation_jobs.get(job_id)
+    if job is None:
+        raise HTTPException(404, "Investigation job not found or expired")
+    return {key: value for key, value in job.items() if key != "task"}

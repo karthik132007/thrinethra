@@ -1,43 +1,37 @@
-# Final delivery report
+# Delivery — real moving-video revision, 25 November 2026
 
-Trinethra is a working local research MVP: a Next.js/TypeScript command centre connected to a FastAPI/SQLAlchemy modular monolith, independent YOLO/ByteTrack video workers, temporal crowd/road baselines, an aggregate incident graph, regression forecasts, transparent risk and read-only LangGraph investigations. SQLite is the local default; PostgreSQL/Compose configuration is provided. Redis is unnecessary for the single-process MVP.
+Trinethra now defaults to actual pretrained model inference on downloaded moving recordings. Synthetic trajectories are opt-in regression fixtures. The application includes independent camera workers, YOLO/ByteTrack observations, temporal crowd/road rules, persisted incidents/evidence, aggregate relationships, measured-count forecasts, real local Qwen investigations and human review.
 
-Implemented operator workflows: configure/upload/start/stop cameras; inspect anonymous tracks and ROIs; monitor camera health/map/zone measurements; search/filter incidents; inspect retained blurred evidence, relationships and risk factors; generate cited deterministic investigations; verify/dismiss/resolve with notes/audit; view historical forecasts; edit intelligence/zone settings; export actual data; run/reset an explicitly synthetic four-camera scenario. Core functionality needs no paid API key.
+Downloaded locally: six real clips (including two distinct synchronized EPFL cameras), MOT17 annotations, calibration provenance, YOLO11 nano/small and Qwen2.5 1.5B. Source permissions and SHA-256 are preserved; no raw footage/weights enter Git. Camera layouts and crop relationships are honestly identified rather than shown as verified city surveillance locations.
 
-Verification: 22 Python tests, 4 Playwright tests, TypeScript and production build passed. SQLite migration applied; PostgreSQL SQL/Compose config validated. CPU detector smoke processed 12 real image frames with five stable track IDs; average warm inference was 108.58 ms (9.21 compute FPS), 437.8 MB RSS. HTTP upload/inference/persistence/frame integration produced five tracks and a first observation in 8.111 seconds including cold startup. A four-feed synthetic run measured 6.139 seconds persistence-to-event and 279.68 ms event-to-WebSocket delivery. Full results and scope: docs/evaluation.md.
+Verified: 33 Python tests, three real-video browser tests (61.96 s), TypeScript and production build. Natural-video model comparison used 358 sampled frames at 640, with 105-frame higher-resolution runs for each model. The physical-camera integration processed 327 samples per camera and produced four threshold incidents, three aggregate correlations and eleven evidence snapshots. The explicit three-object test capacity is not a claim of danger. Local Qwen completed an evidence-cited operator answer on a real incident; asynchronous jobs fix long CPU-response proxy timeouts.
 
-Constructed synthetic benchmark: temporal event precision/recall 0.9487/0.9487 versus single-frame 0.8125/1.0 across 3,000 per-second samples. False-positive samples 40 versus 180. Regression forecast MAE/RMSE 1.773/2.130 versus last-value 2.254/2.792 across 520 synthetic forecast cases. Six labeled synthetic correlation pairs passed. These are not real-world accuracy claims.
+Real shortcomings are measured: nano/960 night-crowd recall was 0.3662 with count MAE 26.257; the model misses small/occluded people. Sparse tracking can switch IDs. Forecasting is not uniformly better than last value. Full results: real-video-evaluation.md and evaluations/*.json. No accident/stampede accuracy or guaranteed safety lead time is claimed.
 
-## Installation
+## Start this installed checkout
 
 ```bash
-uv venv --python 3.12 .venv
-uv pip install --python .venv/bin/python -c requirements.lock -e '.[test,postgres]'
-npm --prefix apps/frontend ci
+make run
+```
+
+Open http://127.0.0.1:3000 and press Replay recordings. Inspect a camera, play the source preview, review measured counts/forecasts, investigate a retained incident, follow its evidence citations and record human verification/resolution. Source files play once; operators can stop/restart sources independently.
+
+## Fresh setup
+
+```bash
+make setup
 cp .env.example .env
 make migrate
+make browser-install
+make llm
+# Another terminal while that local service runs:
+make llm-model
+# Then:
+make run
 ```
 
-For real inference, install CPU Torch and vision dependencies, then download the weights:
+Python must live in a persistent location; environment repair guidance is in installation.md. No required paid credentials. SYNTHETIC_MODE defaults false. DEMO_MODE controls local no-token access only; OPERATOR_TOKEN is required outside that local demo mode. MODEL_PATH/INFERENCE_SIZE/SAMPLE_FPS/TORCH_THREADS configure actual inference. Default LLM_PROVIDER=ollama uses the downloaded model; none explicitly disables generation. API docs are at http://127.0.0.1:8000/docs.
 
-```bash
-uv pip install --python .venv/bin/python torch torchvision --index-url https://download.pytorch.org/whl/cpu
-uv pip install --python .venv/bin/python -e '.[vision]'
-make model
-```
+Reproduce checks with `make test typecheck build e2e`, natural inference using `make evaluate`, independent-camera correlation using `make physical-evaluate`, and real HTTP/model checks using scripts/verify_real_system.py against an isolated instance with all default sources enabled. Browser tests use separate ports/database and preserve operator-controlled application state.
 
-## Startup and demo
-
-```bash
-make backend
-# Separate terminal:
-make frontend
-```
-
-Open http://127.0.0.1:3000; API docs http://127.0.0.1:8000/docs. Press Reset demo, use 2× or 5× playback, watch normal → influx → congestion, open the connected crowd incident, investigate, follow an evidence reference and record human verification/resolution. The simulation is conspicuously labeled and stops at 150 scenario seconds. For real inference, upload a permitted video in Surveillance; no natural CCTV footage is bundled. No deployment or remote push was performed.
-
-Required environment: none for local synthetic demo. OPERATOR_TOKEN is required for DEMO_MODE=false and recommended for operator access. DATABASE_URL selects persistence; MODEL_PATH/DEVICE/SAMPLE_FPS/INFERENCE_SIZE configure vision. COOKIE_SECURE is available for HTTPS. Optional LLM_PROVIDER/BASE_URL/MODEL/API_KEY configure advisory-only output. Retention, evidence blur, trusted RTSP opt-in and exact CORS origins are documented in .env.example and docs/installation.md. Compose additionally requires POSTGRES_PASSWORD.
-
-## Partial/blocked and optional work
-
-Docker/PostgreSQL container execution is blocked by the unavailable Docker daemon; configuration/SQL checks passed. Webcam/RTSP hardware/credentials, CUDA and external LLM adapters were not exercised. Natural-video annotation-based detection/count/event accuracy and safety forecast lead time remain unmeasured; the real pipeline smoke uses repeated photographic imagery, not natural motion. No biometrics, person re-identification or enforcement exists. This is a single-process local research application with heuristic thresholds, approximate intervals, limited blur and a shared operator token. Named roles, hardened deployment, decoder isolation, natural footage evaluation, calibration and multi-source load testing are optional next steps.
+Docker configuration includes PostgreSQL and local Ollama, but Docker execution is blocked by the missing daemon on this host. Webcam/RTSP hardware/credentials and CUDA were unavailable. Named-user/Internet hardening, decoder sandboxing and multi-replica operation remain future operational work. No identification, biometric inference, cross-camera person matching, individual threat scoring, enforcement or autonomous dispatch exists.

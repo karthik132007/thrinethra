@@ -31,12 +31,16 @@ def correlate(a, b, connections, window=120):
     if (
         a.get("mean_speed", 0) > 0.015
         and b.get("mean_speed", 0) > 0.015
+        and a.get("flow_reference")
+        and a.get("flow_reference") == b.get("flow_reference")
         and "direction" in a
         and "direction" in b
     ):
         angle = abs((a["direction"] - b["direction"] + 180) % 360 - 180)
         reasons.append(f"aggregate flow directions differ by {angle:.0f}°")
         confidence += 0.05 if angle < 60 else -0.05
+    elif "direction" in a and "direction" in b:
+        reasons.append("image-flow directions are not compared without a shared coordinate frame")
     return {
         "confidence": round(min(0.95, confidence), 3),
         "explanation": "; ".join(reasons)

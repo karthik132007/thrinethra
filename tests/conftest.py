@@ -7,6 +7,7 @@ os.environ["RUNTIME_DIR"] = f"/tmp/trinethra-test-media-{uuid4().hex}"
 os.environ["LLM_PROVIDER"] = "none"
 os.environ["OPERATOR_TOKEN"] = ""
 os.environ["DEMO_MODE"] = "true"
+os.environ["SYNTHETIC_MODE"] = "true"
 import pytest
 from trinethra.db import Base, engine as database, Session
 from trinethra.engine import engine

@@ -10,6 +10,7 @@ import numpy as np
 import yaml
 from sqlalchemy import select, delete
 from .config import ROOT, RUNTIME, settings
+from .assets import camera_metadata, recording_config
 from .db import (
     Session,
     Camera,
@@ -57,6 +58,7 @@ class Engine:
         self.histories = {}
         self.frames = {}
         self.workers = {}
+        self.run_started = {}
         self.running = True
         self.paused = False
         self.demo_time = 0.0
@@ -68,12 +70,34 @@ class Engine:
         self.last_retention = 0
 
     def seed(self):
+        config_path = ROOT / (
+            "configs/cameras.yaml"
+            if settings.synthetic_mode
+            else "configs/cameras.real.yaml"
+        )
+        data = yaml.safe_load(config_path.read_text())
         with Session.begin() as db:
-            if db.scalar(select(Camera.id).limit(1)):
-                return
-            data = yaml.safe_load((ROOT / "configs/cameras.yaml").read_text())
-            for camera in data["cameras"]:
+            # Disable old synthetic fixtures in the real workflow without deleting history.
+            if not settings.synthetic_mode:
+                for previous in db.scalars(
+                    select(Camera).where(Camera.source == "synthetic")
+                ):
+                    previous.enabled = False
+            for original in data["cameras"]:
+                camera = dict(original)
                 zone_id = camera.pop("zone_id")
+                capacity = camera.pop(
+                    "capacity", 16 if camera["kind"] == "road" else 40
+                )
+                camera.pop("crop", None)
+                camera.pop("recording_group", None)
+                camera.setdefault("source", "synthetic")
+                if camera["source"].startswith("media:"):
+                    camera["source"] = str(
+                        (RUNTIME / "media" / camera["source"][6:]).resolve()
+                    )
+                if db.get(Camera, camera["id"]):
+                    continue
                 db.add(Camera(**camera))
                 db.flush()
                 db.add(
@@ -81,14 +105,20 @@ class Engine:
                         id=zone_id,
                         camera_id=camera["id"],
                         name=camera["name"] + " zone",
-                        capacity=16 if camera["kind"] == "road" else 40,
-                        restricted=camera["kind"] == "road",
+                        capacity=capacity,
+                        restricted=False,
                     )
                 )
             db.flush()
-            for a, b in data["connections"]:
-                db.add(Connection(camera_a=a, camera_b=b))
-            db.add(Configuration(id="intelligence", data=DEFAULTS))
+            for a, b in data.get("connections", []):
+                if not db.scalar(
+                    select(Connection).where(
+                        Connection.camera_a == a, Connection.camera_b == b
+                    )
+                ):
+                    db.add(Connection(camera_a=a, camera_b=b))
+            if not db.get(Configuration, "intelligence"):
+                db.add(Configuration(id="intelligence", data=DEFAULTS))
 
     def configuration(self):
         with Session() as db:
@@ -98,6 +128,7 @@ class Engine:
     def start_worker(self, camera):
         if camera["id"] in self.workers:
             self.workers.pop(camera["id"]).stop()
+        self.run_started[camera["id"]] = now()
         self.workers[camera["id"]] = VideoWorker(
             camera["source"],
             str(ROOT / settings.model_path),
@@ -105,7 +136,34 @@ class Engine:
             settings.inference_size,
             settings.sample_fps,
             self.configuration()["confidence_threshold"],
+            crop=camera_metadata(camera).get("crop"),
         ).start()
+
+    def restart_recording(self, camera):
+        with Session.begin() as db:
+            for event in db.scalars(
+                select(Event).where(
+                    Event.camera_id == camera["id"],
+                    Event.status.in_(
+                        ["active", "escalated", "under_review", "verified"]
+                    ),
+                )
+            ):
+                event.status = "resolved"
+                event.updated_at = now()
+                incident = db.scalar(
+                    select(Incident).where(Incident.event_id == event.id)
+                )
+                incident.timeline = incident.timeline + [
+                    {
+                        "timestamp": now(),
+                        "status": "resolved",
+                        "note": "Recording restarted; beginning a new tracking/observation run",
+                    }
+                ]
+        self.stop_worker(camera["id"])
+        self.clear_camera(camera["id"])
+        self.start_worker(camera)
 
     def stop_worker(self, camera_id):
         if camera_id in self.workers:
@@ -155,56 +213,17 @@ class Engine:
                     cameras = [serialize(c) for c in db.scalars(select(Camera))]
                     zones = [serialize(z) for z in db.scalars(select(Zone))]
                 for camera in cameras:
-                    if not camera["enabled"]:
-                        continue
-                    camera_zones = [z for z in zones if z["camera_id"] == camera["id"]]
-                    if camera["source"] == "synthetic":
-                        if not settings.demo_mode or self.paused:
-                            continue
-                        tracks = (
-                            self.scenario.sample(
-                                camera["id"], camera["kind"], self.demo_time, now()
-                            )
-                            if self.demo_time < Scenario.duration
-                            else []
+                    try:
+                        self.process_camera(camera, zones, config)
+                    except Exception as exc:
+                        log.exception(
+                            "camera_processing_failed",
+                            extra={"camera_id": camera["id"]},
                         )
-                        frame = self.synthetic_frame(camera, tracks)
-                        for zone in camera_zones:
-                            self.process(
-                                camera,
-                                zone,
-                                tracks,
-                                now(),
-                                "synthetic",
-                                0,
-                                frame,
-                                0,
-                                0,
-                                config,
-                            )
-                    elif camera["id"] in self.workers:
-                        worker = self.workers[camera["id"]]
                         with Session.begin() as db:
                             row = db.get(Camera, camera["id"])
-                            row.health = worker.health
-                            row.detail = worker.detail[:500]
-                        try:
-                            result = worker.results.get_nowait()
-                        except queue.Empty:
-                            continue
-                        for zone in camera_zones:
-                            self.process(
-                                camera,
-                                zone,
-                                result["tracks"],
-                                result["timestamp"],
-                                "video_inference",
-                                result["latency_ms"],
-                                result["frame"],
-                                result["media_time"],
-                                result["queue_latency_ms"],
-                                config,
-                            )
+                            row.health = "error"
+                            row.detail = type(exc).__name__ + ": processing failed"
                 if now() - self.last_retention > 300:
                     self.retain()
                     self.last_retention = now()
@@ -214,6 +233,59 @@ class Engine:
                 self.error = type(exc).__name__
             self.tick_ms = (time.monotonic() - start) * 1000
             await asyncio.sleep(max(0.1, 1 - (time.monotonic() - start)))
+
+    def process_camera(self, camera, zones, config):
+        if not camera["enabled"]:
+            return
+        camera_zones = [z for z in zones if z["camera_id"] == camera["id"]]
+        if camera["source"] == "synthetic":
+            if not settings.synthetic_mode or not settings.demo_mode or self.paused:
+                return
+            tracks = (
+                self.scenario.sample(
+                    camera["id"], camera["kind"], self.demo_time, now()
+                )
+                if self.demo_time < Scenario.duration
+                else []
+            )
+            frame = self.synthetic_frame(camera, tracks)
+            for zone in camera_zones:
+                self.process(
+                    camera,
+                    zone,
+                    tracks,
+                    now(),
+                    "synthetic",
+                    0,
+                    frame,
+                    0,
+                    0,
+                    config,
+                )
+        elif camera["id"] in self.workers:
+            worker = self.workers[camera["id"]]
+            with Session.begin() as db:
+                row = db.get(Camera, camera["id"])
+                row.health = worker.health
+                row.detail = worker.detail[:500]
+            try:
+                result = worker.results.get_nowait()
+            except queue.Empty:
+                return
+            for zone in camera_zones:
+                self.process(
+                    camera,
+                    zone,
+                    result["tracks"],
+                    result["timestamp"],
+                    "video_inference",
+                    result["latency_ms"],
+                    result["frame"],
+                    result["media_time"],
+                    result["queue_latency_ms"],
+                    config,
+                    model_info=result.get("model_info"),
+                )
 
     def synthetic_frame(self, camera, tracks):
         frame = np.full((450, 800, 3), (24, 29, 33), dtype=np.uint8)
@@ -266,6 +338,7 @@ class Engine:
         media_time,
         queue_latency,
         config,
+        model_info=None,
     ):
         metric, signals = self.analytics.analyze(
             camera["id"], zone, tracks, timestamp, config, camera["kind"]
@@ -290,6 +363,8 @@ class Engine:
                 | {
                     "inference_ms": round(latency, 2),
                     "media_time": media_time,
+                    "recording_run_started_at": self.run_started.get(camera["id"]),
+                    "model": model_info,
                     "queue_latency_ms": round(queue_latency, 2),
                 },
             )
@@ -401,23 +476,35 @@ class Engine:
                         other_metric = self.latest.get(other.zone_id, {}).get(
                             "metrics", {}
                         )
+                        current_meta = camera_metadata(camera)
+                        other_meta = camera_metadata(other_camera)
+                        common = current_meta.get(
+                            "recording_group"
+                        ) and current_meta.get("recording_group") == other_meta.get(
+                            "recording_group"
+                        )
+                        flow_reference = current_meta.get("recording_group") if common and current_meta.get("crop") and other_meta.get("crop") else None
                         relation = correlate(
                             serialize(event)
                             | {
-                                "lat": camera["lat"],
-                                "lon": camera["lon"],
+                                "flow_reference": flow_reference,
                                 "direction": metric["direction"],
                                 "mean_speed": metric["mean_speed"],
                             },
                             serialize(other)
                             | {
-                                "lat": other_camera.lat,
-                                "lon": other_camera.lon,
+                                "flow_reference": flow_reference,
                                 "direction": other_metric.get("direction", 0),
                                 "mean_speed": other_metric.get("mean_speed", 0),
                             },
                             connections,
                         )
+                        if relation and common:
+                            relation["explanation"] += (
+                                " Adjacent cropped views of one recording; not independent physical cameras or verified GPS proximity."
+                                if current_meta.get("crop") else
+                                " Publisher-synchronized different physical cameras of the same area; no identities matched and no GPS proximity asserted."
+                            )
                         other_incident = db.scalar(
                             select(Incident).where(Incident.event_id == other.id)
                         )
@@ -481,6 +568,7 @@ class Engine:
                             "factors": signal["factors"],
                             "count": metric["count"],
                             "media_time": media_time,
+                            "model": model_info,
                             "risk": risk,
                             "tracks": [
                                 {
@@ -530,6 +618,7 @@ class Engine:
             "pipeline_latency_ms": round((now() - timestamp) * 1000, 2),
             "queue_latency_ms": round(queue_latency, 2),
             "media_time": media_time,
+            "model": model_info,
         }
 
     def retain(self):
@@ -567,7 +656,15 @@ class Engine:
     def snapshot(self):
         with Session() as db:
             cameras = []
-            for c in db.scalars(select(Camera).order_by(Camera.id)):
+            for c in db.scalars(
+                select(Camera)
+                .where(
+                    Camera.source == "synthetic"
+                    if settings.synthetic_mode
+                    else Camera.source != "synthetic"
+                )
+                .order_by(Camera.id)
+            ):
                 data = serialize(c)
                 data["source"] = (
                     "synthetic"
@@ -585,7 +682,14 @@ class Engine:
                 )
                 if c.id in self.workers:
                     data["health"] = self.workers[c.id].health
-                    data["dropped_frames"] = self.workers[c.id].dropped
+                    worker = self.workers[c.id]
+                    data["dropped_frames"] = worker.dropped
+                    data["processed_frames"] = worker.processed
+                    data["media_time"] = worker.media_time
+                    data["media_duration"] = worker.media_duration
+                    data["last_result_at"] = worker.last_result_at
+                    data["detail"] = worker.detail
+                data["source_metadata"] = camera_metadata(c)
                 cameras.append(data)
             zones = [serialize(z) for z in db.scalars(select(Zone))]
             incidents = []
@@ -595,7 +699,8 @@ class Engine:
                 .order_by(Event.started_at.desc())
                 .limit(100)
             ):
-                incidents.append(serialize(i) | {"event": serialize(e)})
+                if settings.synthetic_mode or e.provenance != "synthetic":
+                    incidents.append(serialize(i) | {"event": serialize(e)})
             correlations = [
                 serialize(c)
                 for c in db.scalars(
@@ -604,7 +709,19 @@ class Engine:
                     .limit(100)
                 )
             ]
-            connections = [serialize(c) for c in db.scalars(select(Connection))]
+            visible = {c["id"] for c in cameras}
+            connections = [
+                serialize(c)
+                for c in db.scalars(select(Connection))
+                if c.camera_a in visible and c.camera_b in visible
+            ]
+        zones = [z for z in zones if z["camera_id"] in visible]
+        incident_ids = {i["id"] for i in incidents}
+        correlations = [
+            c
+            for c in correlations
+            if c["incident_a"] in incident_ids and c["incident_b"] in incident_ids
+        ]
         latest = list(self.latest.values())
         return {
             "timestamp": now(),
@@ -614,9 +731,14 @@ class Engine:
             "correlations": correlations,
             "connections": connections,
             "latest": latest,
+            "recordings": {
+                "enabled": not settings.synthetic_mode,
+                "context": recording_config().get("connection_context", ""),
+                "model": Path(settings.model_path).name,
+            },
             "history": {k: list(v) for k, v in self.histories.items()},
             "demo": {
-                "enabled": settings.demo_mode,
+                "enabled": settings.synthetic_mode and settings.demo_mode,
                 "time": round(self.demo_time, 1),
                 "duration": Scenario.duration,
                 "speed": self.speed,

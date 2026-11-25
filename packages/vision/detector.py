@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import time
+import hashlib
 from packages.tracking.features import Trajectories
 
 CLASSES = [0, 1, 2, 3, 5, 7]
@@ -13,8 +14,21 @@ class Detector:
             raise FileNotFoundError(
                 "Model missing. Run scripts/download_model.py before starting video inference."
             )
+        import os
+
+        os.environ.setdefault(
+            "YOLO_CONFIG_DIR", str(Path(model_path).resolve().parent / "ultralytics")
+        )
+        import torch
+
+        torch.set_num_threads(int(os.getenv("TORCH_THREADS", "2")))
+        import cv2
+
+        cv2.setNumThreads(1)
         from ultralytics import YOLO
 
+        self.metadata = {"name":Path(model_path).name,"sha256":hashlib.sha256(Path(model_path).read_bytes()).hexdigest(),
+                         "backend":"Ultralytics YOLO + ByteTrack","device":device,"input_size":size,"detection_confidence_threshold":confidence}
         self.model = YOLO(model_path)
         self.device, self.size, self.confidence = device, size, confidence
         self.trajectories = Trajectories()

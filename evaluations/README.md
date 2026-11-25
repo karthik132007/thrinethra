@@ -1,9 +1,10 @@
-Run `.venv/bin/python evaluations/run.py` to recreate results.json from seed 42. This constructed synthetic benchmark compares per-second crowd-alert labels, four forecasting baselines and six explicit correlation pairs. It bypasses the detector and cannot measure natural video performance.
+# Reproducible evaluations
 
-For actual inference throughput, supply runtime/media/bus.jpg as documented in datasets/README.md and run scripts/vision_smoke.py. That script writes vision-results.json and a repeated-photograph video. With the local backend running, scripts/video_api_smoke.py uploads that clip, temporarily replaces the disposable synthetic cam-04, checks observed tracks/JPEG output and restores the synthetic source; it writes pipeline-results.json. Do not run that smoke if cam-04 is a personal/operational source. These scripts do not calculate detection mAP or road/crowd event accuracy.
+- `make evaluate` / `make real-evaluate`: fresh natural-video YOLO/ByteTrack inference on downloaded pedestrian/traffic inputs, plus actual MOT17 annotations and forecasts on measured counts. Writes real-video-results.json.
+- `evaluations/real_video.py --models yolo11n.pt --assets mot04 mot09 --size 960 --output real-video-nano-960-results.json`: CPU resolution/model comparison; small variant is also recorded.
+- `make physical-evaluate`: separate synchronized physical EPFL cameras through the same temporal/event/correlation engine in an isolated SQLite store. Recording-time offline experiment, not measured real-time delivery latency. Writes physical-camera-results.json.
+- `scripts/verify_real_system.py --url http://127.0.0.1:8000/api/v1`: checks every configured recording, actual observations/trajectories, source playback, evidence, local Qwen and operator review. It requires all four default recording cameras enabled; use an isolated instance when an operator has intentionally stopped a source.
+- `make e2e`: isolated real-video browser workflow on ports 3001/8001, including actual playback metadata and background investigation. Writes playwright-results.json and docs/screenshots/real-*.jpg.
+- `make synthetic-evaluate`: historical constructed baseline comparison, explicitly synthetic and detector-bypassed. results.json is not natural-video accuracy.
 
-Playwright writes playwright-results.json. Stored values describe the actual recorded test run; timing and throughput will vary by hardware/load. See docs/evaluation.md for interpretation and limitations.
-
-`scripts/measure_demo.py` measures synthetic threshold-to-event delay, evidence-to-event processing and WebSocket delivery separately, and writes demo-performance.json. It resets the disposable synthetic scenario. Browser paint and natural-video incident latency are not measured.
-
-The HTTP/WebSocket smoke scripts assume the default local DEMO_MODE=true environment without an operator token. Browser and API integration tests separately verify authenticated access.
+Older vision-results.json/pipeline-results.json use the repeated-photograph fixture; demo-performance.json uses generated trajectories. They are retained as historical evidence, not default data or natural-motion validation. See docs/real-video-evaluation.md for current measurements and their limits.

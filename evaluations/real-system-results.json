@@ -1,0 +1,84 @@
+{
+  "provenance": "Actual running natural-video pipeline; no synthetic observations",
+  "sources": {
+    "rec-east": {
+      "observations": 32,
+      "count_min": 4,
+      "count_max": 11,
+      "mean_inference_ms": 854.34,
+      "positive_motion_observations": 31,
+      "jpeg_bytes": 35221,
+      "original_video_range_status": 206,
+      "source_context": "Recorded video; geographic location not configured. Layout markers are not GPS evidence."
+    },
+    "rec-people": {
+      "observations": 12,
+      "count_min": 6,
+      "count_max": 31,
+      "mean_inference_ms": 1150.98,
+      "positive_motion_observations": 11,
+      "jpeg_bytes": 91152,
+      "original_video_range_status": 206,
+      "source_context": "Recorded video; geographic location not configured. Layout markers are not GPS evidence."
+    },
+    "rec-traffic": {
+      "observations": 20,
+      "count_min": 0,
+      "count_max": 5,
+      "mean_inference_ms": 917.33,
+      "positive_motion_observations": 8,
+      "jpeg_bytes": 143444,
+      "original_video_range_status": 206,
+      "source_context": "Recorded video; geographic location not configured. Layout markers are not GPS evidence."
+    },
+    "rec-west": {
+      "observations": 32,
+      "count_min": 12,
+      "count_max": 21,
+      "mean_inference_ms": 871.5,
+      "positive_motion_observations": 31,
+      "jpeg_bytes": 39056,
+      "original_video_range_status": 206,
+      "source_context": "Recorded video; geographic location not configured. Layout markers are not GPS evidence."
+    }
+  },
+  "incidents": 1,
+  "incident_under_test": {
+    "id": "bc847eee-52d9-43de-81a4-54b9dcf04e1d",
+    "type": "potential_crowd_safety_risk",
+    "camera": "rec-west"
+  },
+  "investigation_seconds": 22.944,
+  "investigation_mode": "local Ollama \u00b7 qwen2.5:1.5b + grounded LangGraph",
+  "model_reasoning": {
+    "provider": "ollama",
+    "model": "qwen2.5:1.5b",
+    "citations_validated": true,
+    "data": {
+      "answer": "[1] The incident was raised due to a smoothed occupancy score of 16.5/18 indicating elevated risk.",
+      "evidence_references": [
+        "4d05eb77-460c-4acb-8421-37806e14af22"
+      ],
+      "hypotheses": [
+        {
+          "text": "The incident was raised due to a smoothed occupancy score of 16.5/18 indicating elevated risk.",
+          "evidence_references": [
+            "4d05eb77-460c-4acb-8421-37806e14af22"
+          ]
+        }
+      ],
+      "review_steps": [
+        "The incident was raised due to a smoothed occupancy score of 16.5/18 indicating elevated risk."
+      ]
+    }
+  },
+  "retained_evidence_references": [
+    "4d05eb77-460c-4acb-8421-37806e14af22"
+  ],
+  "operator_review_verified_and_resolved": true,
+  "limitations": [
+    "Night-crowd detector misses are measured separately; this is not safety validation.",
+    "Connected cropped views share one source recording.",
+    "No autonomous actions are dispatched."
+  ]
+}

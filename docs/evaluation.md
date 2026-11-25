@@ -1,4 +1,6 @@
-# Technical evaluation — 24 November 2026
+# Historical synthetic/initial smoke evaluation — 24 November 2026
+
+**Superseded for natural-video verification by [Real moving-video evaluation](real-video-evaluation.md).** This document preserves the original measurements and does not describe the current default recording workflow.
 
 These are recorded results from this workspace, not performance targets or real-world safety guarantees. Machine: AMD Ryzen 5 5500U, x86-64, 12 logical CPUs, approximately 14 GiB RAM. Python 3.12.11; CPU Torch/YOLO versions are recorded in requirements.lock. The host was shared with development/browser processes; no GPU was measured.
 

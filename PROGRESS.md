@@ -1,43 +1,31 @@
-# Trinethra delivery status
+# Trinethra — real-video delivery status
 
-Updated 24 November 2026. Functional local MVP implemented and verified; no external deployment/push.
+Updated 25 November 2026. Default application is real moving-video inference; synthetic fixtures are opt-in only. No remote push or deployment.
 
-## Completed
+## Completed implementation
 
-- Foundation: Python/Next.js monorepo, repository engineering instructions, architecture/module contracts, environment sample and dependency records.
-- Persistence: SQLAlchemy models for all 15 required record categories, foreign keys/indexes, SQLite WAL, explicit Alembic initial migration, PostgreSQL configuration.
-- Vision: permitted local/uploaded/webcam/opt-in RTSP sources, independent bounded decoder/inference threads, sampling/resizing/dropping, health/retry, CPU/CUDA selection, real YOLO11n + ByteTrack, camera-local expiring trajectory features.
-- Intelligence: polygon crowd/road measurements, smoothing/persistence, congestion/bottleneck/sudden movement, stationary/restricted stopping and recent-deceleration suspected-road baseline. Dedupe/cooldown, severity escalation, normalization and human verification/false-positive feedback.
-- Cross-camera: connected-event graph using type/time/provenance, camera proximity and available aggregate flow; explanatory relationships, no person matching.
-- Forecast/risk: recent-observation regression and uncertainty approximation, capacity crossing estimates, configurable horizons/thresholds, separated confidence and transparent experimental score components.
-- Investigation: read-only LangGraph context/report workflow, exact retained-evidence factual citations, hypotheses/uncertainty/actions, deterministic fallback, optional isolated Ollama/OpenAI-compatible advisory.
-- Backend: documented REST endpoints/OpenAPI, authentication/cookie/CORS, bounded media upload, source confinement, process-local write limiting, WebSocket snapshots, health, audit and retention.
-- Frontend: six connected command-centre views, interactive offline fictional map/optional OSM, risk overlays, camera selection/inspection/grid, incident/evidence/timeline/review, forecasts, relationship graph, editable camera/ROI/intelligence settings, export, loading/empty/error/disconnected states and responsive mobile controls.
-- Demo: four explicitly synthetic cameras with connected zones, seeded normal/influx/congestion/recovery, playback controls and scoped reset. Core demo works with no weights or LLM keys.
-- Documentation: README, architecture, API/database, local/Docker setup, models, actual evaluation, responsible AI, troubleshooting, demonstration script, presentation/innovation outline and delivery report.
-- Infrastructure: Dockerfiles/Compose, CI workflow, Make targets, model download and reproducible evaluation/real-inference/API/performance smoke scripts.
+- Downloaded six real recordings: pedestrian/traffic publisher clips, MOT17-04/MOT17-09, and two different synchronized physical EPFL laboratory cameras. Downloaded real MOT17 annotations and EPFL calibration provenance. All source URLs, sizes, permissions and SHA-256 values are recorded in configs/assets.json; raw assets remain ignored.
+- Downloaded YOLO11 nano/small pretrained weights and Qwen2.5 1.5B Q4_K_M (986 MB). CPU Torch/Ultralytics/ByteTrack are installed. Persistent project model/browser directories avoid temporary-interpreter/cache dependence.
+- Default source setup uses original recordings, actual detector outputs, camera-local tracking, measured motion/counts, temporal crowd/road rules, event evidence, forecasts and audited review. No model/source failure substitutes generated data.
+- Model initialization precedes playback; bounded queues drop stale frames under load; EOF drains inference and exits threads; camera errors are isolated; replay starts a fresh tracking/observation run. Dwell duration is independent of the bounded trajectory deque.
+- Original-source inspection includes browser-compatible WebM playback, publisher attribution and verified hashes. Default source graph explicitly marks layout positions as unverified geography and crops as crops.
+- Forecasts select among three interpretable baselines using rolling validation on measured counts. The actual method/errors/uncertainty are reported; no forced regression improvement claim.
+- Local Qwen answers operator questions and produces structured, cited hypotheses/review steps through read-only LangGraph context. Facts remain exact retained snapshot factors. Bounded asynchronous jobs avoid frontend timeouts; fallback/model failures are explicit.
+- Real HTTP/video/incident/model/review integration verified; source credentials stay redacted. Input source is preserved on metadata-only camera edits. Model name/hash/device/resolution/confidence are attached to new real observations/evidence.
+- Existing persistence/authentication/API/camera/ROI/incident/settings/export/privacy/retention and six frontend views remain functional. Synthetic regression fixtures require SYNTHETIC_MODE=true and are separated from the default real profile.
+- Installation downloads/verifies inputs and prepares playback previews; resumable ranges support large publisher files. `make run` launches the local app and optional local model. Docker includes local Ollama configuration; CI uses actual video assets. Browser tests isolate ports/database from operator-controlled sources.
 
-## Verification actually performed
+## Actual verification
 
-- 22 Python tests passed (20.29 s final behavioral run).
-- 4 Playwright tests passed (21.1 s recorded production-server run), including saved settings and 390 px mobile workflows.
-- TypeScript check passed; production build and standalone startup passed; browser suite also passed on the standalone production server.
-- SQLite migration applied to empty database; PostgreSQL SQL rendered; Compose config validated.
-- Actual CPU YOLO detection and stable ByteTrack IDs on 12 frames from a repeated real photograph encoded as video.
-- Actual HTTP upload → decoder → real inference/tracking → stored observations → annotated JPEG verified; five tracks, first observation in 8.111 s including cold initialization.
-- Synthetic four-camera event/correlation/investigation/human review verified by integration and browser tests.
-- Synthetic alert timing measured: 6.139 s temporal persistence to incident, 22.77 ms capture-to-event processing, 279.68 ms event-to-WebSocket receipt.
-- Reproducible synthetic event/forecast/correlation benchmarks written to evaluations/results.json; full qualifications in docs/evaluation.md.
-- Local Git milestone commits created on codex/trinethra-mvp; no push.
+- 33 Python tests passed in 50.16 s, covering real ingestion, model metadata, background jobs, asset integrity and camera-coordinate boundaries.
+- 3 real-video Playwright tests passed in 61.96 s, with zero unexpected/flaky cases. They verify real defaults/no simulation, actual frames, source-video metadata playback, model job completion, evidence citations, human verification and 390 px mobile controls. Test services use 3001/8001 and a separate database, preserving operator choices in the normal app.
+- `make typecheck` and `make build` passed. SQLite migration tested previously; PostgreSQL SQL and Compose configuration validated.
+- Initial real system integration verified all four sources and local Qwen with retained evidence citations, plus verify/resolve. Current actual report is evaluations/real-system-results.json; its first recorded model configuration is small/960, explicitly separate from the final nano/960 CPU default.
+- Fresh detector comparison: 358 sampled frames across four natural clips/two models at 640; additional nano/small 960 comparisons each used 105 annotated frames. Full observations, errors and source hashes are committed as JSON, not invented summary metrics.
+- MOT17-04 night crowd: nano/960 measured precision 0.8734, recall 0.3662 and count MAE 26.257. Dense/occluded people are substantially missed; this is a limitation, not a passing safety-accuracy claim.
+- Independent physical-camera experiment: two publisher-synchronized EPFL cameras, 3,915 frames each, 327 inferred samples per view; the same engine produced 4 measured test-threshold incidents, 3 aggregate correlations and 11 evidence snapshots. The 3-object capacity is an explicit low mechanical test threshold, not a dangerous-room claim. Offline processing took 61.905 s; it is not wall-clock alert latency.
+- Screenshots of actual recordings/reports are docs/screenshots/real-*.jpg. Earlier generated/repeated-photo results remain labeled historical and are not current natural-video evidence.
 
-## Partial / external verification limits
+## External limits and scientific boundaries
 
-- Docker images/PostgreSQL runtime: configuration and SQL provided, but actual container execution blocked by missing Docker daemon/socket on this machine.
-- Natural crowd/traffic footage and annotated datasets were not supplied. Real detection/tracking/ingestion were verified on repeated real imagery; natural-motion incident/count/tracking accuracy remains unmeasured. No surveillance footage is bundled.
-- Webcam/RTSP adapters exist but no physical camera/RTSP credentials were available for live-source checks.
-- Optional CUDA/LLM provider adapters exist; no compatible GPU/provider was supplied. Deterministic no-key operation is tested.
-- Agent orchestration is a fixed read-only LangGraph workflow, not an open-ended autonomous investigator. Without an LLM, arbitrary operator questions receive the retained structured report and explicit limits rather than free-form reasoning.
-
-## Known MVP limits / optional improvements
-
-Single backend state owner; synchronous DB/JPEG analytics briefly block its event loop. No multi-process replication or large-scale throughput claim. Cold model startup drops old frames. Tracker histories are bounded; motion is image-plane only. Risk thresholds and confidence intervals are experimental and uncalibrated. Road alerts are hypotheses, not accident confirmation. Evidence blurring is upper-box based and cannot guarantee face anonymization. Uploaded media, incident/report/audit summaries have no automatic retention purge; historical observations/evidence/forecasts do. Shared operator token rather than named roles; TLS/network hardening and decoder isolation are future deployment work. External LLM advice is always unverified and has no action authority.
+Docker daemon/socket is unavailable, so container builds/PostgreSQL runtime could not be exercised. Physical webcam/RTSP credentials and CUDA hardware were unavailable. No labeled real collision evaluation or calibrated safety forecast exists. Counts, risk thresholds and approximate intervals remain experimental; sparse-frame tracking switches and false/missed alerts are possible. Camera GPS and physical crowd density/speed are not inferred. Model citations validate reference existence, not semantic truth. Evidence blur is upper-box based, not guaranteed anonymization. Named-user authorization, Internet hardening, decoder isolation and multi-replica operation remain outside this local research deployment. No biometrics, re-identification, individual threat scores or autonomous enforcement are implemented.

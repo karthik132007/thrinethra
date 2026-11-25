@@ -1,6 +1,6 @@
 # Docker deployment
 
-The provided Compose stack contains PostgreSQL, FastAPI and Next.js. It binds published ports to host loopback. No Redis, Kubernetes or remote service is needed.
+The provided Compose stack contains PostgreSQL, FastAPI, Next.js and a local Ollama service. It binds published ports to host loopback. No Redis, Kubernetes or paid model service is needed.
 
 ```bash
 cp .env.example .env
@@ -8,7 +8,7 @@ cp .env.example .env
 # Set OPERATOR_TOKEN for authenticated access.
 mkdir -p runtime/models
 # Optional real inference weights:
-.venv/bin/python scripts/download_model.py
+.venv/bin/python scripts/download_assets.py
 docker compose up --build
 ```
 
@@ -19,3 +19,6 @@ Open http://localhost:3000. Containers initialize schema at startup. Apply futur
 This is a local demonstration deployment. Internet operation requires TLS, COOKIE_SECURE=true, identity/session management, a reverse proxy with upload/timeouts, network/RTSP egress controls, robust distributed rate limiting, operational backup/retention and independent security review. Those are not claimed as implemented. Do not use multiple backend replicas/workers: each instance owns inference and live state.
 
 Verification status is in PROGRESS.md. A valid Compose file or successful image-independent build does not prove containers were run.
+
+
+The default stack processes downloaded recordings with SYNTHETIC_MODE=false. Prepare runtime assets on the host with make assets. The Ollama model volume is shared with runtime/models/ollama; populate it locally with make llm/make llm-model or run docker compose exec ollama ollama pull qwen2.5:1.5b. The backend uses the internal http://ollama:11434 address. Docker runtime could not be exercised on the development host because its daemon is unavailable; Compose validation alone is recorded accurately in PROGRESS.md.

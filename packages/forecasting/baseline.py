@@ -1,4 +1,4 @@
-"""Rolling linear regression compared to last-value and moving-average baselines."""
+"""Observation-driven forecasting with rolling validation of three interpretable baselines."""
 
 import numpy as np
 
@@ -13,22 +13,70 @@ def forecast(history, capacity, horizon=60):
             "peak_ratio": 0,
         }
     rows = history[-60:]
-    times = np.array([r["timestamp"] for r in rows])
-    y = np.array([r["count"] for r in rows], dtype=float)
+    times = np.array([r["timestamp"] for r in rows], float)
+    y = np.array([r["count"] for r in rows], float)
     x = times - times[-1]
-    slope, intercept = np.polyfit(x, y, 1) if np.ptp(x) > 0 else (0, float(np.mean(y)))
-    fitted = slope * x + intercept
-    residual = float(np.sqrt(np.mean((y - fitted) ** 2)))
-    steps = np.linspace(horizon / 12, horizon, 12)
-    points = []
+    observed_slope, intercept = (
+        np.polyfit(x, y, 1) if np.ptp(x) > 0 else (0, float(np.mean(y)))
+    )
+    smooth = y[0]
+    for value in y[1:]:
+        smooth = 0.3 * value + 0.7 * smooth
+    errors = {
+        "rolling linear regression": [],
+        "last observation": [],
+        "exponential smoothing": [],
+    }
+    for cut in range(5, len(y)):
+        xx = times[:cut] - times[cut - 1]
+        yy = y[:cut]
+        a, b = np.polyfit(xx, yy, 1) if np.ptp(xx) > 0 else (0, yy[-1])
+        ema = yy[0]
+        for value in yy[1:]:
+            ema = 0.3 * value + 0.7 * ema
+        candidates = {
+            "rolling linear regression": max(0, a * (times[cut] - times[cut - 1]) + b),
+            "last observation": yy[-1],
+            "exponential smoothing": ema,
+        }
+        for name, prediction in candidates.items():
+            errors[name].append(float(prediction - y[cut]))
+    scores = {
+        name: round(float(np.mean(np.abs(values))), 4)
+        for name, values in errors.items()
+        if values
+    }
+    # Short windows retain regression until there is enough temporal validation evidence.
+    method = (
+        min(scores, key=scores.get) if len(y) >= 15 else "rolling linear regression"
+    )
+    slope = float(observed_slope) if method == "rolling linear regression" else 0.0
+    base = (
+        float(intercept)
+        if method == "rolling linear regression"
+        else float(y[-1])
+        if method == "last observation"
+        else float(smooth)
+    )
+    selected_errors = errors[method]
+    fitted = observed_slope * x + intercept
+    residual = (
+        float(np.sqrt(np.mean(np.square(selected_errors))))
+        if selected_errors
+        else float(np.sqrt(np.mean((y - fitted) ** 2)))
+    )
+    dt = float(np.median(np.diff(times))) if len(times) > 1 else 1.0
+    dt = max(dt, 0.01)
     sxx = max(float(np.sum((x - x.mean()) ** 2)), 0.001)
-    for step in steps:
-        prediction = max(0, float(intercept + slope * step))
-        uncertainty = (
-            1.96
-            * max(residual, 0.5)
-            * np.sqrt(1 + 1 / len(y) + (step - x.mean()) ** 2 / sxx)
+    points = []
+    for step in np.linspace(horizon / 12, horizon, 12):
+        prediction = max(0, base + slope * step)
+        scale = (
+            np.sqrt(1 + 1 / len(y) + (step - x.mean()) ** 2 / sxx)
+            if method == "rolling linear regression"
+            else np.sqrt(1 + step / (dt * len(y)))
         )
+        uncertainty = 1.96 * max(residual, 0.5) * scale
         points.append(
             {
                 "timestamp": float(times[-1] + step),
@@ -37,22 +85,28 @@ def forecast(history, capacity, horizon=60):
                 "upper": round(prediction + uncertainty, 2),
             }
         )
-    crossing = (capacity - intercept) / slope if slope > 0 else None
+    crossing = (
+        (capacity - base) / slope if slope > 0 else (0 if base >= capacity else None)
+    )
     return {
         "ready": True,
-        "method": "rolling linear regression",
+        "method": method,
         "horizon": horizon,
         "points": points,
-        "slope": round(float(slope), 4),
+        "slope": round(slope, 4),
+        "observed_trend": round(float(observed_slope), 4),
         "residual_rmse": round(residual, 3),
         "capacity": capacity,
         "peak_ratio": max(p["value"] for p in points) / max(capacity, 1),
         "threshold_crossing_seconds": round(max(0, float(crossing)), 1)
         if crossing is not None and crossing <= horizon
         else None,
-        "uncertainty": "Approximate 95% residual-based prediction interval; not calibrated for crowd safety.",
+        "backtest_mae": scores,
+        "validation": "Rolling one-step errors on recent observations; models are selected locally, not validated safety predictors.",
+        "uncertainty": "Approximate residual-based interval; coverage is not calibrated for public safety.",
         "factors": [
-            f"Rolling trend {slope:.3f} objects/s",
-            f"{len(y)} recent observations",
+            f"Selected {method} using recent temporal validation",
+            f"Observed trend {observed_slope:.3f} objects/s",
+            f"{len(y)} measured observations",
         ],
     }
