@@ -2,6 +2,8 @@
 
 **The Third Eye for Public Safety** — local video situational intelligence with measured evidence and human review.
 
+**For reviewers:** [Download the 22-page reviewer handbook (PDF)](output/pdf/TRINETHRA_Reviewer_Handbook.pdf). It covers fresh setup, local models, startup, a guided review, custom video, APIs, reproducible checks, measured results and troubleshooting. Use the matching real-video source revision described in the guide.
+
 The default application now runs **real pretrained YOLO + ByteTrack inference on downloaded moving videos**. It does not generate people, detections, counts, trajectories, incidents or chart series. The earlier synthetic scenario remains only as an explicitly enabled test fixture (`SYNTHETIC_MODE=true`).
 
 ![Real recording surveillance](docs/screenshots/real-surveillance.jpg)

@@ -2,6 +2,8 @@
 
 Updated 25 November 2026. Default application is real moving-video inference; synthetic fixtures are opt-in only. No remote push or deployment.
 
+Reviewer documentation: output/pdf/TRINETHRA_Reviewer_Handbook.pdf is a 22-page guide for a fresh source download, installation, model/data retrieval, startup, UI/API review, evaluation and troubleshooting. It identifies application baseline 9afc1fa and distinguishes local verification from unverified remote availability/platform paths. All pages were rendered for visual review; contents links, bookmarks, text bounds and page count were checked. Rebuild source: scripts/build_reviewer_pdf.py. This documentation addition changes no application behavior.
+
 ## Completed implementation
 
 - Downloaded six real recordings: pedestrian/traffic publisher clips, MOT17-04/MOT17-09, and two different synchronized physical EPFL laboratory cameras. Downloaded real MOT17 annotations and EPFL calibration provenance. All source URLs, sizes, permissions and SHA-256 values are recorded in configs/assets.json; raw assets remain ignored.
